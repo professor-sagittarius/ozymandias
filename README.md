@@ -15,12 +15,13 @@ When you launch a project with mojave:
 2. **Injects a sandbox preamble** into your `AGENTS.md` so the agent knows its
    filesystem constraints and behavioral rules up front.
 
-3. **Launches a container** (`ubuntu:24.04` via Podman) with only three paths
+3. **Launches a container** (`ubuntu:24.04` via Podman) with only these paths
    mounted:
    - The project directory (read-write)
    - `~/.config/opencode/` - sandboxed config and AGENTS.md (the original
      `opencode.json` is replaced by the merged sandbox version)
    - `~/.local/share/opencode/` - session data and credentials (read-write)
+   - `~/.gitconfig` - read-only, if present (so git commits have correct identity)
 
 4. **Cleans up on exit** - strips the injected preamble from `AGENTS.md` and
    removes temp files.
