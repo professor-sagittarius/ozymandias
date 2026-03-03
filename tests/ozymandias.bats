@@ -458,6 +458,14 @@ teardown() {
 	[[ "$output" == *"${SANDBOX_AGENTS_FILE}:${GLOBAL_CONFIG_DIR}/AGENTS.md"* ]]
 }
 
+@test "launch_container: dry run mounts config dir read-only" {
+	parse_args "/tmp"
+	generate_config
+	inject_preamble
+	DRY_RUN=1 run launch_container
+	[[ "$output" == *"${GLOBAL_CONFIG_DIR}:${GLOBAL_CONFIG_DIR}:ro"* ]]
+}
+
 @test "launch_container: dry run sets working directory to project dir" {
 	parse_args "/tmp"
 	generate_config

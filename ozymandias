@@ -200,6 +200,7 @@ launch_container() {
 		--volume "${PROJECT_DIR}:${PROJECT_DIR}"
 		--volume "${OPENCODE_BIN}:${OPENCODE_BIN}:ro"
 		--volume "${OPENCODE_DATA_DIR}:${OPENCODE_DATA_DIR}"
+		--volume "${GLOBAL_CONFIG_DIR}:${GLOBAL_CONFIG_DIR}:ro"
 		--volume "${SANDBOX_CONFIG_FILE}:${GLOBAL_CONFIG_DIR}/opencode.json:ro"
 		--volume "${SANDBOX_AGENTS_FILE}:${GLOBAL_CONFIG_DIR}/AGENTS.md"
 		--workdir "${PROJECT_DIR}"
