@@ -18,6 +18,8 @@ OPENCODE_BIN="${OPENCODE_BIN:-$HOME/.opencode/bin/opencode}"
 GLOBAL_CONFIG_DIR="${GLOBAL_CONFIG_DIR:-$HOME/.config/opencode}"
 # shellcheck disable=SC2034
 OPENCODE_DATA_DIR="${OPENCODE_DATA_DIR:-$HOME/.local/share/opencode}"
+# shellcheck disable=SC2034
+CONTAINER_IMAGE="${CONTAINER_IMAGE:-ubuntu:24.04}"
 
 check_prerequisites() {
 	local missing=0
@@ -145,8 +147,27 @@ cleanup() {
 }
 
 launch_container() {
-	echo "mojave: launch_container not yet implemented" >&2
-	return 1
+	local cmd=(
+		podman run
+		--rm
+		--interactive
+		--tty
+		--volume "${PROJECT_DIR}:${PROJECT_DIR}"
+		--volume "${OPENCODE_BIN}:${OPENCODE_BIN}:ro"
+		--volume "${OPENCODE_DATA_DIR}:${OPENCODE_DATA_DIR}"
+		--volume "${SANDBOX_CONFIG_FILE}:${GLOBAL_CONFIG_DIR}/opencode.json:ro"
+		--volume "${SANDBOX_AGENTS_FILE}:${GLOBAL_CONFIG_DIR}/AGENTS.md"
+		--workdir "${PROJECT_DIR}"
+		"${CONTAINER_IMAGE}"
+		"${OPENCODE_BIN}"
+	)
+
+	if [[ "${DRY_RUN:-0}" -eq 1 ]]; then
+		echo "${cmd[*]}"
+		return 0
+	fi
+
+	"${cmd[@]}"
 }
 
 main() {

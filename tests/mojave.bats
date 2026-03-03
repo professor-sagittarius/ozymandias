@@ -230,3 +230,59 @@ teardown() {
 	grep -q "Appended during session." "$GLOBAL_CONFIG_DIR/AGENTS.md"
 	! grep -q "MOJAVE:START" "$GLOBAL_CONFIG_DIR/AGENTS.md"
 }
+
+@test "launch_container: dry run includes project dir mount at same path" {
+	parse_args "/tmp"
+	generate_config
+	inject_preamble
+	DRY_RUN=1 run launch_container
+	[[ "$output" == *"--volume /tmp:/tmp"* ]]
+}
+
+@test "launch_container: dry run mounts opencode binary read-only" {
+	parse_args "/tmp"
+	generate_config
+	inject_preamble
+	DRY_RUN=1 run launch_container
+	[[ "$output" == *"${OPENCODE_BIN}:${OPENCODE_BIN}:ro"* ]]
+}
+
+@test "launch_container: dry run mounts opencode data dir" {
+	parse_args "/tmp"
+	generate_config
+	inject_preamble
+	DRY_RUN=1 run launch_container
+	[[ "$output" == *"${OPENCODE_DATA_DIR}:${OPENCODE_DATA_DIR}"* ]]
+}
+
+@test "launch_container: dry run mounts sandbox config as opencode.json read-only" {
+	parse_args "/tmp"
+	generate_config
+	inject_preamble
+	DRY_RUN=1 run launch_container
+	[[ "$output" == *"${SANDBOX_CONFIG_FILE}:${GLOBAL_CONFIG_DIR}/opencode.json:ro"* ]]
+}
+
+@test "launch_container: dry run mounts sandbox agents file as AGENTS.md" {
+	parse_args "/tmp"
+	generate_config
+	inject_preamble
+	DRY_RUN=1 run launch_container
+	[[ "$output" == *"${SANDBOX_AGENTS_FILE}:${GLOBAL_CONFIG_DIR}/AGENTS.md"* ]]
+}
+
+@test "launch_container: dry run sets working directory to project dir" {
+	parse_args "/tmp"
+	generate_config
+	inject_preamble
+	DRY_RUN=1 run launch_container
+	[[ "$output" == *"--workdir /tmp"* ]]
+}
+
+@test "launch_container: dry run uses ubuntu:24.04 image" {
+	parse_args "/tmp"
+	generate_config
+	inject_preamble
+	DRY_RUN=1 run launch_container
+	[[ "$output" == *"ubuntu:24.04"* ]]
+}
