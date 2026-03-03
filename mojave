@@ -1,6 +1,16 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+parse_args() {
+	local raw_dir="${1:-$PWD}"
+	if [[ ! -d "$raw_dir" ]]; then
+		echo "mojave: error: directory not found: $raw_dir" >&2
+		return 1
+	fi
+	# shellcheck disable=SC2034
+	PROJECT_DIR="$(realpath "$raw_dir")"
+}
+
 # Guard so sourcing in tests does not execute main.
 if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
 	main "$@"
