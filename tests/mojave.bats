@@ -21,6 +21,10 @@ EOF
 Be concise.
 EOF
 	SANDBOX_AGENTS_FILE=""
+	# Create a minimal mock opencode binary so prerequisite tests are portable.
+	printf '#!/bin/sh\n' >"$GLOBAL_CONFIG_DIR/mock-opencode"
+	chmod +x "$GLOBAL_CONFIG_DIR/mock-opencode"
+	OPENCODE_BIN="$GLOBAL_CONFIG_DIR/mock-opencode"
 }
 
 teardown() {
@@ -47,6 +51,19 @@ teardown() {
 @test "parse_args: rejects non-existent directory" {
 	run parse_args "/nonexistent/path/that/does/not/exist"
 	[[ "$status" -ne 0 ]]
+}
+
+@test "parse_args: rejects path containing a colon" {
+	# Create a temp dir with a colon in the path by symlinking.
+	# Colons in directory names are legal on Linux but break podman volume specs.
+	# We test this via parse_args by mocking realpath output.
+	local real_realpath
+	real_realpath="$(command -v realpath)"
+	realpath() { echo "/home/user/my:project"; }
+	run parse_args "/tmp"
+	unset -f realpath
+	[[ "$status" -ne 0 ]]
+	[[ "$output" == *"colon"* ]]
 }
 
 @test "check_prerequisites: passes when all required commands exist" {

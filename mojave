@@ -9,6 +9,10 @@ parse_args() {
 	fi
 	# shellcheck disable=SC2034
 	PROJECT_DIR="$(realpath "$raw_dir")"
+	if [[ "$PROJECT_DIR" == *:* ]]; then
+		echo "mojave: error: project path contains a colon, which is not supported: $PROJECT_DIR" >&2
+		return 1
+	fi
 }
 
 # Allow override in tests.
@@ -86,14 +90,14 @@ generate_config() {
 }
 
 _preamble_text() {
-	cat <<'PREAMBLE'
+	cat <<PREAMBLE
 # MOJAVE:START
 ## Sandbox Context
 
 You are running inside a Podman sandbox launched by mojave. Your filesystem access is
 limited to the following paths: the current project directory (read-write),
-~/.config/opencode/ (read-write for AGENTS.md, read-only for opencode.json), and
-~/.local/share/opencode/ (read-write, for session data and credentials). All other
+$GLOBAL_CONFIG_DIR/ (read-write for AGENTS.md, read-only for opencode.json), and
+$OPENCODE_DATA_DIR/ (read-write, for session data and credentials). All other
 paths on the filesystem are inaccessible.
 
 The following operations are auto-allowed and do not require confirmation: file reads,
@@ -132,8 +136,10 @@ inject_preamble() {
 strip_preamble() {
 	# Delete every line from MOJAVE:START to MOJAVE:END inclusive, then write back.
 	# If sentinels are not present, the file is written back unchanged.
-	sed '/^# MOJAVE:START$/,/^# MOJAVE:END$/d' "$SANDBOX_AGENTS_FILE" \
-		>"$GLOBAL_CONFIG_DIR/AGENTS.md"
+	local tmp
+	tmp="$(mktemp --suffix=.md)"
+	sed '/^# MOJAVE:START$/,/^# MOJAVE:END$/d' "$SANDBOX_AGENTS_FILE" >"$tmp"
+	mv "$tmp" "$GLOBAL_CONFIG_DIR/AGENTS.md"
 }
 
 cleanup() {
@@ -163,7 +169,8 @@ launch_container() {
 	)
 
 	if [[ "${DRY_RUN:-0}" -eq 1 ]]; then
-		echo "${cmd[*]}"
+		printf '%q ' "${cmd[@]}"
+		printf '\n'
 		return 0
 	fi
 
@@ -173,9 +180,9 @@ launch_container() {
 main() {
 	parse_args "$@"
 	check_prerequisites
+	trap cleanup EXIT
 	generate_config
 	inject_preamble
-	trap cleanup EXIT
 	launch_container
 }
 
