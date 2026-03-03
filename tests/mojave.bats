@@ -25,6 +25,7 @@ EOF
 	printf '#!/bin/sh\n' >"$GLOBAL_CONFIG_DIR/mock-opencode"
 	chmod +x "$GLOBAL_CONFIG_DIR/mock-opencode"
 	OPENCODE_BIN="$GLOBAL_CONFIG_DIR/mock-opencode"
+	MOJAVE_POLICY_FILE="$BATS_TEST_DIRNAME/../mojave-policy.json"
 }
 
 teardown() {
@@ -128,6 +129,16 @@ teardown() {
 	[[ "$output" == *"opencode"* ]]
 }
 
+@test "check_prerequisites: fails when policy file is missing" {
+	local old_policy
+	old_policy="$MOJAVE_POLICY_FILE"
+	MOJAVE_POLICY_FILE="/nonexistent/mojave-policy.json"
+	run check_prerequisites
+	MOJAVE_POLICY_FILE="$old_policy"
+	[[ "$status" -ne 0 ]]
+	[[ "$output" == *"policy"* ]]
+}
+
 @test "check_prerequisites: fails when jq is missing" {
 	local fake_bin old_path old_bin
 	fake_bin="$(mktemp -d)"
@@ -170,24 +181,43 @@ teardown() {
 	[[ "$val" == "allow" ]]
 }
 
-@test "generate_config: sets bash catch-all to allow" {
+@test "generate_config: sets bash catch-all to ask" {
 	generate_config
 	local val
 	val="$(jq -r '.permission.bash["*"]' "$SANDBOX_CONFIG_FILE")"
+	[[ "$val" == "ask" ]]
+}
+
+@test "generate_config: policy allows ls" {
+	generate_config
+	local val
+	val="$(jq -r '.permission.bash["ls*"]' "$SANDBOX_CONFIG_FILE")"
 	[[ "$val" == "allow" ]]
 }
 
-@test "generate_config: keeps curl as ask" {
+@test "generate_config: floor enforces curl as ask" {
 	generate_config
 	local val
 	val="$(jq -r '.permission.bash["curl *"]' "$SANDBOX_CONFIG_FILE")"
 	[[ "$val" == "ask" ]]
 }
 
-@test "generate_config: keeps git push as ask" {
+@test "generate_config: floor enforces git push as ask" {
 	generate_config
 	local val
 	val="$(jq -r '.permission.bash["git push*"]' "$SANDBOX_CONFIG_FILE")"
+	[[ "$val" == "ask" ]]
+}
+
+@test "generate_config: floor enforces rm as ask even when policy allows all" {
+	local permissive_policy
+	permissive_policy="$(mktemp --suffix=.json)"
+	echo '{"permission":{"bash":{"*":"allow","rm *":"allow"},"read":"allow","edit":"allow","write":"allow","glob":"allow","grep":"allow","webfetch":"allow","websearch":"allow"}}' \
+		>"$permissive_policy"
+	MOJAVE_POLICY_FILE="$permissive_policy" generate_config
+	rm -f "$permissive_policy"
+	local val
+	val="$(jq -r '.permission.bash["rm *"]' "$SANDBOX_CONFIG_FILE")"
 	[[ "$val" == "ask" ]]
 }
 

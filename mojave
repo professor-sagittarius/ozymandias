@@ -31,6 +31,8 @@ GLOBAL_CONFIG_DIR="${GLOBAL_CONFIG_DIR:-$HOME/.config/opencode}"
 OPENCODE_DATA_DIR="${OPENCODE_DATA_DIR:-$HOME/.local/share/opencode}"
 # shellcheck disable=SC2034
 CONTAINER_IMAGE="${CONTAINER_IMAGE:-ubuntu:24.04}"
+# shellcheck disable=SC2034
+MOJAVE_POLICY_FILE="${MOJAVE_POLICY_FILE:-$(dirname "$(realpath "${BASH_SOURCE[0]}")")/mojave-policy.json}"
 
 check_prerequisites() {
 	local missing=0
@@ -50,6 +52,11 @@ check_prerequisites() {
 		missing=1
 	fi
 
+	if [[ ! -f "$MOJAVE_POLICY_FILE" ]]; then
+		echo "mojave: error: policy file not found: $MOJAVE_POLICY_FILE" >&2
+		missing=1
+	fi
+
 	return "$missing"
 }
 
@@ -57,43 +64,31 @@ generate_config() {
 	# shellcheck disable=SC2034
 	SANDBOX_CONFIG_FILE="$(mktemp --suffix=.json)"
 
-	jq '. * {
-        "permission": {
-            "bash": {
-                "*":               "allow",
-                "curl *":          "ask",
-                "wget *":          "ask",
-                "ssh *":           "ask",
-                "scp *":           "ask",
-                "rm *":            "ask",
-                "git push*":       "ask",
-                "git pull*":       "ask",
-                "git fetch*":      "ask",
-                "git clone*":      "ask",
-                "npm *":           "ask",
-                "yarn *":          "ask",
-                "pip*":            "ask",
-                "cargo *":         "ask",
-                "apt*":            "ask",
-                "yum*":            "ask",
-                "brew*":           "ask",
-                "docker *":        "ask",
-                "docker-compose*": "ask",
-                "chmod*":          "ask",
-                "chown*":          "ask",
-                "mv *":            "ask",
-                "cp -f*":          "ask",
-                "find * -exec*":   "ask"
-            },
-            "read":       "allow",
-            "edit":       "allow",
-            "write":      "allow",
-            "glob":       "allow",
-            "grep":       "allow",
-            "webfetch":   "allow",
-            "websearch":  "allow"
-        }
-    }' "$GLOBAL_CONFIG_DIR/opencode.json" >"$SANDBOX_CONFIG_FILE"
+	# Floor: constraints that cannot be weakened by user policy.
+	# Covers destructive file ops, git remote ops, and network tools - the
+	# operations that can cause lasting harm even within the container.
+	local floor
+	floor=$(cat <<'EOF'
+{
+    "cp -f*":        "ask",
+    "curl *":        "ask",
+    "find * -exec*": "ask",
+    "git clone*":    "ask",
+    "git fetch*":    "ask",
+    "git pull*":     "ask",
+    "git push*":     "ask",
+    "mv *":          "ask",
+    "rm *":          "ask",
+    "scp *":         "ask",
+    "ssh *":         "ask",
+    "wget *":        "ask"
+}
+EOF
+)
+
+	jq --slurpfile policy "$MOJAVE_POLICY_FILE" --argjson floor "$floor" \
+		'. * $policy[0] | .permission.bash += $floor' \
+		"$GLOBAL_CONFIG_DIR/opencode.json" >"$SANDBOX_CONFIG_FILE"
 }
 
 _preamble_text() {
@@ -108,14 +103,18 @@ $OPENCODE_DATA_DIR/ (read-write for session data and runtime files; auth.json
 and bin/ within that directory are read-only). All other
 paths on the filesystem are inaccessible.
 
-The following operations are auto-allowed and do not require confirmation: file reads,
-writes, edits, glob, grep, webfetch, websearch, and general bash commands.
+File operations (read, write, edit, glob, grep), webfetch, and websearch are
+auto-allowed. For bash, the following are auto-allowed: file inspection (ls, cat,
+head, tail, stat, diff, wc, du, df), text processing (grep, sed, awk, sort, uniq,
+cut, tr), shell utilities (echo, printf, pwd, env, date, which, whoami, ps),
+directory creation (mkdir, touch), git local operations (add, commit, diff, log,
+status, checkout, branch, stash, merge, rebase, show, tag, config), and common
+language runtimes (python, node, ruby, go, make, bash, sh). All other bash commands
+require confirmation.
 
-The following operations still require confirmation: curl, wget, ssh, scp, rm, package
-managers (npm, pip, apt, cargo, yarn, brew), chmod, chown.
-
-Git: local operations (add, commit, diff, log, status, checkout) are auto-allowed. Any
-operation that touches a remote (push, pull, fetch, clone) requires confirmation.
+The following operations always require confirmation regardless of any other setting:
+file removal and overwriting (rm, mv, cp -f, find -exec), network tools (curl, wget,
+ssh, scp), and git remote operations (push, pull, fetch, clone).
 
 Docker is not available in this environment. If a task requires Docker, do not attempt
 to run the command. Instead, provide the user with the exact Docker command they should

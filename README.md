@@ -58,20 +58,27 @@ colon (podman volume spec constraint).
 
 ## Permission policy
 
-Inside the container the following are auto-allowed without prompts:
+Permissions are defined in `mojave-policy.json`, installed alongside the binary.
+You can edit this file to customize what requires confirmation. The defaults are:
 
-- File reads, writes, edits, glob, grep
-- General bash commands
-- Web fetch and web search
-- Git local operations (add, commit, diff, log, status, checkout)
+**Auto-allowed:**
+- File operations: read, write, edit, glob, grep, webfetch, websearch
+- Bash file inspection: `ls`, `cat`, `head`, `tail`, `stat`, `diff`, `wc`, `du`, `df`
+- Bash text processing: `grep`, `sed`, `awk`, `sort`, `uniq`, `cut`, `tr`
+- Bash shell utilities: `echo`, `printf`, `pwd`, `env`, `date`, `which`, `whoami`, `ps`
+- Directory creation: `mkdir`, `touch`
+- Git local operations: `add`, `commit`, `diff`, `log`, `status`, `checkout`, `branch`, `stash`, `merge`, `rebase`, `show`, `tag`, `config`
+- Common runtimes: `python`, `node`, `ruby`, `go`, `make`, `bash`, `sh`
+- All other bash commands: require confirmation (`"*": "ask"`)
 
-The following require confirmation:
+**Always require confirmation (not overridable):**
 
-- `curl`, `wget`, `ssh`, `scp`
-- `rm`, `mv`, `cp -f`, `chmod`, `chown`, `find -exec`
+These floor constraints are hardcoded in mojave and cannot be weakened by editing
+`mojave-policy.json`:
+
+- File removal and overwriting: `rm`, `mv`, `cp -f`, `find -exec`
+- Network tools: `curl`, `wget`, `ssh`, `scp`
 - Git remote operations: `push`, `pull`, `fetch`, `clone`
-- Package managers: `npm`, `yarn`, `pip`, `cargo`, `apt`, `yum`, `brew`
-- `docker`, `docker-compose`
 
 ## Overrides
 
