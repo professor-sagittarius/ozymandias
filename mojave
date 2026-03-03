@@ -83,6 +83,57 @@ generate_config() {
     }' "$GLOBAL_CONFIG_DIR/opencode.json" >"$SANDBOX_CONFIG_FILE"
 }
 
+_preamble_text() {
+	cat <<'PREAMBLE'
+# MOJAVE:START
+## Sandbox Context
+
+You are running inside a Podman sandbox launched by mojave. Your filesystem access is
+limited to the following paths: the current project directory (read-write),
+~/.config/opencode/ (read-write for AGENTS.md, read-only for opencode.json), and
+~/.local/share/opencode/ (read-write, for session data and credentials). All other
+paths on the filesystem are inaccessible.
+
+The following operations are auto-allowed and do not require confirmation: file reads,
+writes, edits, glob, grep, webfetch, websearch, and general bash commands.
+
+The following operations still require confirmation: curl, wget, ssh, scp, rm, package
+managers (npm, pip, apt, cargo, yarn, brew), chmod, chown.
+
+Git: local operations (add, commit, diff, log, status, checkout) are auto-allowed. Any
+operation that touches a remote (push, pull, fetch, clone) requires confirmation.
+
+Docker is not available in this environment. If a task requires Docker, do not attempt
+to run the command. Instead, provide the user with the exact Docker command they should
+run on the host so they can copy and paste it directly.
+
+Do not make architectural or structural design decisions without checking with the user
+first. This includes creating new files that were not explicitly requested - file
+creation is a design decision. If a task requires decisions about project structure,
+dependency choices, framework selection, new file creation, or any change beyond the
+immediate request, surface the decision and wait for explicit confirmation before
+proceeding.
+# MOJAVE:END
+PREAMBLE
+}
+
+inject_preamble() {
+	# shellcheck disable=SC2034
+	SANDBOX_AGENTS_FILE="$(mktemp --suffix=.md)"
+	{
+		_preamble_text
+		echo ""
+		cat "$GLOBAL_CONFIG_DIR/AGENTS.md"
+	} >"$SANDBOX_AGENTS_FILE"
+}
+
+strip_preamble() {
+	# Delete every line from MOJAVE:START to MOJAVE:END inclusive, then write back.
+	# If sentinels are not present, the file is written back unchanged.
+	sed '/^# MOJAVE:START$/,/^# MOJAVE:END$/d' "$SANDBOX_AGENTS_FILE" \
+		>"$GLOBAL_CONFIG_DIR/AGENTS.md"
+}
+
 # Guard so sourcing in tests does not execute main.
 if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
 	main "$@"

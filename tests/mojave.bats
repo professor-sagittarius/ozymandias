@@ -15,11 +15,18 @@ setup() {
 }
 EOF
 	SANDBOX_CONFIG_FILE=""
+	cat >"$GLOBAL_CONFIG_DIR/AGENTS.md" <<'EOF'
+# Existing instructions
+
+Be concise.
+EOF
+	SANDBOX_AGENTS_FILE=""
 }
 
 teardown() {
 	rm -rf "$BATS_TMPDIR/fixtures"
 	if [[ -n "${SANDBOX_CONFIG_FILE:-}" ]]; then rm -f "$SANDBOX_CONFIG_FILE"; fi
+	if [[ -n "${SANDBOX_AGENTS_FILE:-}" ]]; then rm -f "$SANDBOX_AGENTS_FILE"; fi
 }
 
 @test "parse_args: defaults PROJECT_DIR to PWD when no argument given" {
@@ -130,4 +137,72 @@ teardown() {
 	local val
 	val="$(jq -r '.permission.bash["git push*"]' "$SANDBOX_CONFIG_FILE")"
 	[[ "$val" == "ask" ]]
+}
+
+@test "inject_preamble: creates a temp file" {
+	inject_preamble
+	[[ -f "$SANDBOX_AGENTS_FILE" ]]
+}
+
+@test "inject_preamble: temp file starts with MOJAVE:START sentinel" {
+	inject_preamble
+	head -1 "$SANDBOX_AGENTS_FILE" | grep -q "MOJAVE:START"
+}
+
+@test "inject_preamble: temp file contains MOJAVE:END sentinel" {
+	inject_preamble
+	grep -q "MOJAVE:END" "$SANDBOX_AGENTS_FILE"
+}
+
+@test "inject_preamble: preamble appears before existing content" {
+	inject_preamble
+	local start_line existing_line
+	start_line="$(grep -n "MOJAVE:START" "$SANDBOX_AGENTS_FILE" | cut -d: -f1)"
+	existing_line="$(grep -n "Existing instructions" "$SANDBOX_AGENTS_FILE" | cut -d: -f1)"
+	[[ "$start_line" -lt "$existing_line" ]]
+}
+
+@test "inject_preamble: existing AGENTS.md content is preserved" {
+	inject_preamble
+	grep -q "Be concise." "$SANDBOX_AGENTS_FILE"
+}
+
+@test "strip_preamble: removes MOJAVE:START sentinel" {
+	inject_preamble
+	echo "New agent instruction." >>"$SANDBOX_AGENTS_FILE"
+	strip_preamble
+	! grep -q "MOJAVE:START" "$GLOBAL_CONFIG_DIR/AGENTS.md"
+}
+
+@test "strip_preamble: removes MOJAVE:END sentinel" {
+	inject_preamble
+	strip_preamble
+	! grep -q "MOJAVE:END" "$GLOBAL_CONFIG_DIR/AGENTS.md"
+}
+
+@test "strip_preamble: preserves original content" {
+	inject_preamble
+	strip_preamble
+	grep -q "Be concise." "$GLOBAL_CONFIG_DIR/AGENTS.md"
+}
+
+@test "strip_preamble: preserves content added during session" {
+	inject_preamble
+	echo "New agent instruction." >>"$SANDBOX_AGENTS_FILE"
+	strip_preamble
+	grep -q "New agent instruction." "$GLOBAL_CONFIG_DIR/AGENTS.md"
+}
+
+@test "strip_preamble: is idempotent when preamble not present" {
+	# Simulate the case where sandbox died before inject_preamble ran.
+	# SANDBOX_AGENTS_FILE points to a copy without sentinels.
+	local no_preamble_file
+	no_preamble_file="$(mktemp)"
+	cp "$GLOBAL_CONFIG_DIR/AGENTS.md" "$no_preamble_file"
+	SANDBOX_AGENTS_FILE="$no_preamble_file"
+	strip_preamble
+	grep -q "Be concise." "$GLOBAL_CONFIG_DIR/AGENTS.md"
+	! grep -q "MOJAVE" "$GLOBAL_CONFIG_DIR/AGENTS.md"
+	rm -f "$no_preamble_file"
+	SANDBOX_AGENTS_FILE=""
 }
