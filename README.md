@@ -1,20 +1,18 @@
 # ozymandias
 
-Runs [opencode](https://opencode.ai) inside a Podman container so the AI agent
-operates on a limited filesystem slice rather than your whole system.
-
-## Ozymandias
-
-> And on the pedestal, these words appear:
-> My name is Ozymandias, King of Kings;
-> Look on my Works, ye Mighty, and despair!
-> Nothing beside remains. Round the decay
-> Of that colossal Wreck, boundless and bare
-> The lone and level sands stretch far away.
->
+> And on the pedestal, these words appear:  
+> My name is Ozymandias, King of Kings;  
+> Look on my Works, ye Mighty, and despair!  
+> Nothing beside remains. Round the decay  
+> Of that colossal Wreck, boundless and bare  
+> The lone and level sands stretch far away.  
+>  
 > -- Percy Bysshe Shelley
 
 ## How it works
+
+Runs [opencode](https://opencode.ai) inside a Podman container so the AI agent
+operates on a limited filesystem slice rather than your whole system.
 
 When you launch a project with ozymandias:
 
