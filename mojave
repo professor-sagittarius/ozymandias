@@ -15,9 +15,16 @@ parse_args() {
 	fi
 }
 
-# Allow override in tests.
+# Allow override in tests. If not set, prefer the default install path; fall
+# back to whatever is on PATH.
 # shellcheck disable=SC2034
-OPENCODE_BIN="${OPENCODE_BIN:-$HOME/.opencode/bin/opencode}"
+if [[ -z "${OPENCODE_BIN:-}" ]]; then
+	if [[ -x "$HOME/.opencode/bin/opencode" ]]; then
+		OPENCODE_BIN="$HOME/.opencode/bin/opencode"
+	else
+		OPENCODE_BIN="$(realpath "$(command -v opencode)" 2>/dev/null || true)"
+	fi
+fi
 # shellcheck disable=SC2034
 GLOBAL_CONFIG_DIR="${GLOBAL_CONFIG_DIR:-$HOME/.config/opencode}"
 # shellcheck disable=SC2034

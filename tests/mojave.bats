@@ -66,6 +66,41 @@ teardown() {
 	[[ "$output" == *"colon"* ]]
 }
 
+@test "OPENCODE_BIN: uses default install path when present" {
+	local fake_home
+	fake_home="$(mktemp -d)"
+	mkdir -p "$fake_home/.opencode/bin"
+	printf '#!/bin/sh\n' >"$fake_home/.opencode/bin/opencode"
+	chmod +x "$fake_home/.opencode/bin/opencode"
+	result="$(HOME="$fake_home" bash -c 'source "$1"; echo "$OPENCODE_BIN"' _ "$BATS_TEST_DIRNAME/../mojave")"
+	rm -rf "$fake_home"
+	[[ "$result" == "$fake_home/.opencode/bin/opencode" ]]
+}
+
+@test "OPENCODE_BIN: falls back to opencode on PATH when default path absent" {
+	local fake_bin fake_home
+	fake_bin="$(mktemp -d)"
+	fake_home="$(mktemp -d)"
+	printf '#!/bin/sh\n' >"$fake_bin/opencode"
+	chmod +x "$fake_bin/opencode"
+	result="$(HOME="$fake_home" PATH="$fake_bin:$PATH" bash -c 'source "$1"; echo "$OPENCODE_BIN"' _ "$BATS_TEST_DIRNAME/../mojave")"
+	rm -rf "$fake_bin" "$fake_home"
+	[[ "$result" == "$fake_bin/opencode" ]]
+}
+
+@test "OPENCODE_BIN: resolves symlink on PATH to real binary path" {
+	local fake_bin fake_home real_bin link_dir
+	fake_bin="$(mktemp -d)"
+	fake_home="$(mktemp -d)"
+	link_dir="$(mktemp -d)"
+	printf '#!/bin/sh\n' >"$fake_bin/opencode-real"
+	chmod +x "$fake_bin/opencode-real"
+	ln -s "$fake_bin/opencode-real" "$link_dir/opencode"
+	result="$(HOME="$fake_home" PATH="$link_dir:$PATH" bash -c 'source "$1"; echo "$OPENCODE_BIN"' _ "$BATS_TEST_DIRNAME/../mojave")"
+	rm -rf "$fake_bin" "$fake_home" "$link_dir"
+	[[ "$result" == "$fake_bin/opencode-real" ]]
+}
+
 @test "check_prerequisites: passes when all required commands exist" {
 	run check_prerequisites
 	[[ "$status" -eq 0 ]]
