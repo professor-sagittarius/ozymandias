@@ -134,6 +134,30 @@ strip_preamble() {
 		>"$GLOBAL_CONFIG_DIR/AGENTS.md"
 }
 
+cleanup() {
+	if [[ -n "${SANDBOX_AGENTS_FILE:-}" ]]; then
+		strip_preamble
+		rm -f "$SANDBOX_AGENTS_FILE"
+	fi
+	if [[ -n "${SANDBOX_CONFIG_FILE:-}" ]]; then
+		rm -f "$SANDBOX_CONFIG_FILE"
+	fi
+}
+
+launch_container() {
+	echo "mojave: launch_container not yet implemented" >&2
+	return 1
+}
+
+main() {
+	parse_args "$@"
+	check_prerequisites
+	generate_config
+	inject_preamble
+	trap cleanup EXIT
+	launch_container
+}
+
 # Guard so sourcing in tests does not execute main.
 if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
 	main "$@"

@@ -206,3 +206,27 @@ teardown() {
 	rm -f "$no_preamble_file"
 	SANDBOX_AGENTS_FILE=""
 }
+
+@test "cleanup: removes SANDBOX_CONFIG_FILE" {
+	generate_config
+	local f="$SANDBOX_CONFIG_FILE"
+	[[ -f "$f" ]]
+	cleanup
+	[[ ! -f "$f" ]]
+}
+
+@test "cleanup: removes SANDBOX_AGENTS_FILE" {
+	inject_preamble
+	local f="$SANDBOX_AGENTS_FILE"
+	[[ -f "$f" ]]
+	cleanup
+	[[ ! -f "$f" ]]
+}
+
+@test "cleanup: writes AGENTS.md back without preamble" {
+	inject_preamble
+	echo "Appended during session." >>"$SANDBOX_AGENTS_FILE"
+	cleanup
+	grep -q "Appended during session." "$GLOBAL_CONFIG_DIR/AGENTS.md"
+	! grep -q "MOJAVE:START" "$GLOBAL_CONFIG_DIR/AGENTS.md"
+}
