@@ -1,8 +1,8 @@
 # ozymandias
 
 > And on the pedestal, these words appear:  
-> My name is Ozymandias, King of Kings;  
-> Look on my Works, ye Mighty, and despair!  
+> "My name is Ozymandias, King of Kings;  
+> Look on my Works, ye Mighty, and despair!"  
 > Nothing beside remains. Round the decay  
 > Of that colossal Wreck, boundless and bare  
 > The lone and level sands stretch far away.  
@@ -11,7 +11,7 @@
 
 ## How it works
 
-Runs [opencode](https://opencode.ai) inside a Podman container so the AI agent
+Runs [opencode](https://opencode.ai) inside a Podman container so the agent
 operates on a limited filesystem slice rather than your whole system.
 
 When you launch a project with ozymandias:
@@ -33,7 +33,7 @@ When you launch a project with ozymandias:
      `auth.json` and `bin/` within this directory are read-only
    - `~/.gitconfig` - read-only, if present (so git commits have correct identity);
      `[include]` directives referencing other files will not resolve inside the
-     container - ozymandias warns if any are detected
+     container. Ozymandias warns if any are detected
 
 4. **Cleans up on exit** - strips the injected preamble from `AGENTS.md` and
    removes temp files.
