@@ -286,3 +286,11 @@ teardown() {
 	DRY_RUN=1 run launch_container
 	[[ "$output" == *"ubuntu:24.04"* ]]
 }
+
+@test "end-to-end: DRY_RUN produces a valid podman run command" {
+	DRY_RUN=1 run "$BATS_TEST_DIRNAME/../mojave" "/tmp"
+	[[ "$status" -eq 0 ]]
+	[[ "$output" == *"podman run"* ]]
+	[[ "$output" == *"ubuntu:24.04"* ]]
+	[[ "$output" == *"--workdir /tmp"* ]]
+}
