@@ -104,7 +104,8 @@ _preamble_text() {
 You are running inside a Podman sandbox launched by mojave. Your filesystem access is
 limited to the following paths: the current project directory (read-write),
 $GLOBAL_CONFIG_DIR/ (read-write for AGENTS.md, read-only for opencode.json), and
-$OPENCODE_DATA_DIR/ (read-write, for session data and credentials). All other
+$OPENCODE_DATA_DIR/ (read-write for session data and runtime files; auth.json
+and bin/ within that directory are read-only). All other
 paths on the filesystem are inaccessible.
 
 The following operations are auto-allowed and do not require confirmation: file reads,
@@ -178,11 +179,14 @@ launch_container() {
 		cmd+=(--volume "${HOME}/.gitconfig:${HOME}/.gitconfig:ro")
 	fi
 
-	# Overlay auth.json read-only on top of the read-write data dir mount.
+	# Overlay read-only paths on top of the read-write data dir mount.
 	# More specific bind mounts shadow broader ones, so the data dir remains
 	# writable for the session database and other runtime files.
 	if [[ -f "${OPENCODE_DATA_DIR}/auth.json" ]]; then
 		cmd+=(--volume "${OPENCODE_DATA_DIR}/auth.json:${OPENCODE_DATA_DIR}/auth.json:ro")
+	fi
+	if [[ -d "${OPENCODE_DATA_DIR}/bin" ]]; then
+		cmd+=(--volume "${OPENCODE_DATA_DIR}/bin:${OPENCODE_DATA_DIR}/bin:ro")
 	fi
 
 	cmd+=("${CONTAINER_IMAGE}" "${OPENCODE_BIN}")

@@ -330,6 +330,29 @@ teardown() {
 	[[ "$output" != *"auth.json"* ]]
 }
 
+@test "launch_container: dry run overlays bin read-only when present" {
+	local fake_data
+	fake_data="$(mktemp -d)"
+	mkdir "$fake_data/bin"
+	OPENCODE_DATA_DIR="$fake_data" parse_args "/tmp"
+	OPENCODE_DATA_DIR="$fake_data" generate_config
+	OPENCODE_DATA_DIR="$fake_data" inject_preamble
+	OPENCODE_DATA_DIR="$fake_data" DRY_RUN=1 run launch_container
+	rm -rf "$fake_data"
+	[[ "$output" == *"${fake_data}/bin:${fake_data}/bin:ro"* ]]
+}
+
+@test "launch_container: dry run omits bin overlay when absent" {
+	local fake_data
+	fake_data="$(mktemp -d)"
+	OPENCODE_DATA_DIR="$fake_data" parse_args "/tmp"
+	OPENCODE_DATA_DIR="$fake_data" generate_config
+	OPENCODE_DATA_DIR="$fake_data" inject_preamble
+	OPENCODE_DATA_DIR="$fake_data" DRY_RUN=1 run launch_container
+	rm -rf "$fake_data"
+	[[ "$output" != *"${fake_data}/bin:"* ]]
+}
+
 @test "launch_container: dry run mounts sandbox config as opencode.json read-only" {
 	parse_args "/tmp"
 	generate_config
