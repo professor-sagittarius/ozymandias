@@ -40,6 +40,49 @@ check_prerequisites() {
 	return "$missing"
 }
 
+generate_config() {
+	# shellcheck disable=SC2034
+	SANDBOX_CONFIG_FILE="$(mktemp --suffix=.json)"
+
+	jq '. * {
+        "permission": {
+            "bash": {
+                "*":               "allow",
+                "curl *":          "ask",
+                "wget *":          "ask",
+                "ssh *":           "ask",
+                "scp *":           "ask",
+                "rm *":            "ask",
+                "git push*":       "ask",
+                "git pull*":       "ask",
+                "git fetch*":      "ask",
+                "git clone*":      "ask",
+                "npm *":           "ask",
+                "yarn *":          "ask",
+                "pip*":            "ask",
+                "cargo *":         "ask",
+                "apt*":            "ask",
+                "yum*":            "ask",
+                "brew*":           "ask",
+                "docker *":        "ask",
+                "docker-compose*": "ask",
+                "chmod*":          "ask",
+                "chown*":          "ask",
+                "mv *":            "ask",
+                "cp -f*":          "ask",
+                "find * -exec*":   "ask"
+            },
+            "read":       "allow",
+            "edit":       "allow",
+            "write":      "allow",
+            "glob":       "allow",
+            "grep":       "allow",
+            "webfetch":   "allow",
+            "websearch":  "allow"
+        }
+    }' "$GLOBAL_CONFIG_DIR/opencode.json" >"$SANDBOX_CONFIG_FILE"
+}
+
 # Guard so sourcing in tests does not execute main.
 if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
 	main "$@"
