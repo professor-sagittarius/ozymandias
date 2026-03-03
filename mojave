@@ -178,6 +178,13 @@ launch_container() {
 		cmd+=(--volume "${HOME}/.gitconfig:${HOME}/.gitconfig:ro")
 	fi
 
+	# Overlay auth.json read-only on top of the read-write data dir mount.
+	# More specific bind mounts shadow broader ones, so the data dir remains
+	# writable for the session database and other runtime files.
+	if [[ -f "${OPENCODE_DATA_DIR}/auth.json" ]]; then
+		cmd+=(--volume "${OPENCODE_DATA_DIR}/auth.json:${OPENCODE_DATA_DIR}/auth.json:ro")
+	fi
+
 	cmd+=("${CONTAINER_IMAGE}" "${OPENCODE_BIN}")
 
 	if [[ "${DRY_RUN:-0}" -eq 1 ]]; then
@@ -189,9 +196,16 @@ launch_container() {
 	"${cmd[@]}"
 }
 
+warn_gitconfig_includes() {
+	if [[ -f "${HOME}/.gitconfig" ]] && grep -q '^\[include' "${HOME}/.gitconfig"; then
+		echo "mojave: warning: ~/.gitconfig contains [include] directives; included files will not be available in the container" >&2
+	fi
+}
+
 main() {
 	parse_args "$@"
 	check_prerequisites
+	warn_gitconfig_includes
 	trap cleanup EXIT
 	generate_config
 	inject_preamble

@@ -20,8 +20,11 @@ When you launch a project with mojave:
    - The project directory (read-write)
    - `~/.config/opencode/` - sandboxed config and AGENTS.md (the original
      `opencode.json` is replaced by the merged sandbox version)
-   - `~/.local/share/opencode/` - session data and credentials (read-write)
-   - `~/.gitconfig` - read-only, if present (so git commits have correct identity)
+   - `~/.local/share/opencode/` - session database and runtime files (read-write);
+     `auth.json` within this directory is overlaid read-only
+   - `~/.gitconfig` - read-only, if present (so git commits have correct identity);
+     `[include]` directives referencing other files will not resolve inside the
+     container - mojave warns if any are detected
 
 4. **Cleans up on exit** - strips the injected preamble from `AGENTS.md` and
    removes temp files.

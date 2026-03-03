@@ -299,12 +299,35 @@ teardown() {
 	[[ "$output" == *"${OPENCODE_BIN}:${OPENCODE_BIN}:ro"* ]]
 }
 
-@test "launch_container: dry run mounts opencode data dir" {
+@test "launch_container: dry run mounts opencode data dir read-write" {
 	parse_args "/tmp"
 	generate_config
 	inject_preamble
 	DRY_RUN=1 run launch_container
 	[[ "$output" == *"${OPENCODE_DATA_DIR}:${OPENCODE_DATA_DIR}"* ]]
+}
+
+@test "launch_container: dry run overlays auth.json read-only when present" {
+	local fake_data
+	fake_data="$(mktemp -d)"
+	echo '{}' >"$fake_data/auth.json"
+	OPENCODE_DATA_DIR="$fake_data" parse_args "/tmp"
+	OPENCODE_DATA_DIR="$fake_data" generate_config
+	OPENCODE_DATA_DIR="$fake_data" inject_preamble
+	OPENCODE_DATA_DIR="$fake_data" DRY_RUN=1 run launch_container
+	rm -rf "$fake_data"
+	[[ "$output" == *"${fake_data}/auth.json:${fake_data}/auth.json:ro"* ]]
+}
+
+@test "launch_container: dry run omits auth.json overlay when absent" {
+	local fake_data
+	fake_data="$(mktemp -d)"
+	OPENCODE_DATA_DIR="$fake_data" parse_args "/tmp"
+	OPENCODE_DATA_DIR="$fake_data" generate_config
+	OPENCODE_DATA_DIR="$fake_data" inject_preamble
+	OPENCODE_DATA_DIR="$fake_data" DRY_RUN=1 run launch_container
+	rm -rf "$fake_data"
+	[[ "$output" != *"auth.json"* ]]
 }
 
 @test "launch_container: dry run mounts sandbox config as opencode.json read-only" {
@@ -368,6 +391,32 @@ teardown() {
 	HOME="$fake_home" DRY_RUN=1 run launch_container
 	rm -rf "$fake_home"
 	[[ "$output" != *".gitconfig"* ]]
+}
+
+@test "warn_gitconfig_includes: emits warning when [include] present" {
+	local fake_home
+	fake_home="$(mktemp -d)"
+	printf '[include]\n\tpath = ~/.gitconfig.d/work\n' >"$fake_home/.gitconfig"
+	HOME="$fake_home" run warn_gitconfig_includes
+	rm -rf "$fake_home"
+	[[ "$output" == *"[include]"* ]]
+}
+
+@test "warn_gitconfig_includes: no warning when [include] absent" {
+	local fake_home
+	fake_home="$(mktemp -d)"
+	printf '[user]\n\tname = Test\n' >"$fake_home/.gitconfig"
+	HOME="$fake_home" run warn_gitconfig_includes
+	rm -rf "$fake_home"
+	[[ -z "$output" ]]
+}
+
+@test "warn_gitconfig_includes: no warning when gitconfig absent" {
+	local fake_home
+	fake_home="$(mktemp -d)"
+	HOME="$fake_home" run warn_gitconfig_includes
+	rm -rf "$fake_home"
+	[[ -z "$output" ]]
 }
 
 @test "end-to-end: DRY_RUN produces a valid podman run command" {
