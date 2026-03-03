@@ -11,6 +11,35 @@ parse_args() {
 	PROJECT_DIR="$(realpath "$raw_dir")"
 }
 
+# Allow override in tests.
+# shellcheck disable=SC2034
+OPENCODE_BIN="${OPENCODE_BIN:-$HOME/.opencode/bin/opencode}"
+# shellcheck disable=SC2034
+GLOBAL_CONFIG_DIR="${GLOBAL_CONFIG_DIR:-$HOME/.config/opencode}"
+# shellcheck disable=SC2034
+OPENCODE_DATA_DIR="${OPENCODE_DATA_DIR:-$HOME/.local/share/opencode}"
+
+check_prerequisites() {
+	local missing=0
+
+	if ! command -v podman &>/dev/null; then
+		echo "mojave: error: podman not found on PATH" >&2
+		missing=1
+	fi
+
+	if ! command -v jq &>/dev/null; then
+		echo "mojave: error: jq not found on PATH" >&2
+		missing=1
+	fi
+
+	if [[ ! -x "$OPENCODE_BIN" ]]; then
+		echo "mojave: error: opencode binary not found or not executable: $OPENCODE_BIN" >&2
+		missing=1
+	fi
+
+	return "$missing"
+}
+
 # Guard so sourcing in tests does not execute main.
 if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
 	main "$@"
