@@ -4,13 +4,13 @@ set -euo pipefail
 parse_args() {
 	local raw_dir="${1:-$PWD}"
 	if [[ ! -d "$raw_dir" ]]; then
-		echo "mojave: error: directory not found: $raw_dir" >&2
+		echo "ozymandias: error: directory not found: $raw_dir" >&2
 		return 1
 	fi
 	# shellcheck disable=SC2034
 	PROJECT_DIR="$(realpath "$raw_dir")"
 	if [[ "$PROJECT_DIR" == *:* ]]; then
-		echo "mojave: error: project path contains a colon, which is not supported: $PROJECT_DIR" >&2
+		echo "ozymandias: error: project path contains a colon, which is not supported: $PROJECT_DIR" >&2
 		return 1
 	fi
 }
@@ -32,28 +32,28 @@ OPENCODE_DATA_DIR="${OPENCODE_DATA_DIR:-$HOME/.local/share/opencode}"
 # shellcheck disable=SC2034
 CONTAINER_IMAGE="${CONTAINER_IMAGE:-ubuntu:24.04}"
 # shellcheck disable=SC2034
-MOJAVE_POLICY_FILE="${MOJAVE_POLICY_FILE:-$(dirname "$(realpath "${BASH_SOURCE[0]}")")/mojave-policy.json}"
+OZYMANDIAS_POLICY_FILE="${OZYMANDIAS_POLICY_FILE:-$(dirname "$(realpath "${BASH_SOURCE[0]}")")/ozymandias-policy.json}"
 
 check_prerequisites() {
 	local missing=0
 
 	if ! command -v podman &>/dev/null; then
-		echo "mojave: error: podman not found on PATH" >&2
+		echo "ozymandias: error: podman not found on PATH" >&2
 		missing=1
 	fi
 
 	if ! command -v jq &>/dev/null; then
-		echo "mojave: error: jq not found on PATH" >&2
+		echo "ozymandias: error: jq not found on PATH" >&2
 		missing=1
 	fi
 
 	if [[ ! -x "$OPENCODE_BIN" ]]; then
-		echo "mojave: error: opencode binary not found or not executable: $OPENCODE_BIN" >&2
+		echo "ozymandias: error: opencode binary not found or not executable: $OPENCODE_BIN" >&2
 		missing=1
 	fi
 
-	if [[ ! -f "$MOJAVE_POLICY_FILE" ]]; then
-		echo "mojave: error: policy file not found: $MOJAVE_POLICY_FILE" >&2
+	if [[ ! -f "$OZYMANDIAS_POLICY_FILE" ]]; then
+		echo "ozymandias: error: policy file not found: $OZYMANDIAS_POLICY_FILE" >&2
 		missing=1
 	fi
 
@@ -86,17 +86,17 @@ generate_config() {
 EOF
 )
 
-	jq --slurpfile policy "$MOJAVE_POLICY_FILE" --argjson floor "$floor" \
+	jq --slurpfile policy "$OZYMANDIAS_POLICY_FILE" --argjson floor "$floor" \
 		'. * $policy[0] | .permission.bash += $floor' \
 		"$GLOBAL_CONFIG_DIR/opencode.json" >"$SANDBOX_CONFIG_FILE"
 }
 
 _preamble_text() {
 	cat <<PREAMBLE
-# MOJAVE:START
+# OZYMANDIAS:START
 ## Sandbox Context
 
-You are running inside a Podman sandbox launched by mojave. Your filesystem access is
+You are running inside a Podman sandbox launched by ozymandias. Your filesystem access is
 limited to the following paths: the current project directory (read-write),
 $GLOBAL_CONFIG_DIR/ (read-write for AGENTS.md, read-only for opencode.json), and
 $OPENCODE_DATA_DIR/ (read-write for session data and runtime files; auth.json
@@ -126,7 +126,7 @@ creation is a design decision. If a task requires decisions about project struct
 dependency choices, framework selection, new file creation, or any change beyond the
 immediate request, surface the decision and wait for explicit confirmation before
 proceeding.
-# MOJAVE:END
+# OZYMANDIAS:END
 PREAMBLE
 }
 
@@ -141,11 +141,11 @@ inject_preamble() {
 }
 
 strip_preamble() {
-	# Delete every line from MOJAVE:START to MOJAVE:END inclusive, then write back.
+	# Delete every line from OZYMANDIAS:START to OZYMANDIAS:END inclusive, then write back.
 	# If sentinels are not present, the file is written back unchanged.
 	local tmp
 	tmp="$(mktemp --suffix=.md)"
-	sed '/^# MOJAVE:START$/,/^# MOJAVE:END$/d' "$SANDBOX_AGENTS_FILE" >"$tmp"
+	sed '/^# OZYMANDIAS:START$/,/^# OZYMANDIAS:END$/d' "$SANDBOX_AGENTS_FILE" >"$tmp"
 	mv "$tmp" "$GLOBAL_CONFIG_DIR/AGENTS.md"
 }
 
@@ -201,7 +201,7 @@ launch_container() {
 
 warn_gitconfig_includes() {
 	if [[ -f "${HOME}/.gitconfig" ]] && grep -q '^\[include' "${HOME}/.gitconfig"; then
-		echo "mojave: warning: ~/.gitconfig contains [include] directives; included files will not be available in the container" >&2
+		echo "ozymandias: warning: ~/.gitconfig contains [include] directives; included files will not be available in the container" >&2
 	fi
 }
 

@@ -1,7 +1,7 @@
 #!/usr/bin/env bats
 
 setup() {
-	source "$BATS_TEST_DIRNAME/../mojave"
+	source "$BATS_TEST_DIRNAME/../ozymandias"
 	GLOBAL_CONFIG_DIR="$BATS_TMPDIR/fixtures"
 	mkdir -p "$GLOBAL_CONFIG_DIR"
 	cat >"$GLOBAL_CONFIG_DIR/opencode.json" <<'EOF'
@@ -25,7 +25,7 @@ EOF
 	printf '#!/bin/sh\n' >"$GLOBAL_CONFIG_DIR/mock-opencode"
 	chmod +x "$GLOBAL_CONFIG_DIR/mock-opencode"
 	OPENCODE_BIN="$GLOBAL_CONFIG_DIR/mock-opencode"
-	MOJAVE_POLICY_FILE="$BATS_TEST_DIRNAME/../mojave-policy.json"
+	OZYMANDIAS_POLICY_FILE="$BATS_TEST_DIRNAME/../ozymandias-policy.json"
 }
 
 teardown() {
@@ -73,7 +73,7 @@ teardown() {
 	mkdir -p "$fake_home/.opencode/bin"
 	printf '#!/bin/sh\n' >"$fake_home/.opencode/bin/opencode"
 	chmod +x "$fake_home/.opencode/bin/opencode"
-	result="$(HOME="$fake_home" bash -c 'source "$1"; echo "$OPENCODE_BIN"' _ "$BATS_TEST_DIRNAME/../mojave")"
+	result="$(HOME="$fake_home" bash -c 'source "$1"; echo "$OPENCODE_BIN"' _ "$BATS_TEST_DIRNAME/../ozymandias")"
 	rm -rf "$fake_home"
 	[[ "$result" == "$fake_home/.opencode/bin/opencode" ]]
 }
@@ -84,7 +84,7 @@ teardown() {
 	fake_home="$(mktemp -d)"
 	printf '#!/bin/sh\n' >"$fake_bin/opencode"
 	chmod +x "$fake_bin/opencode"
-	result="$(HOME="$fake_home" PATH="$fake_bin:$PATH" bash -c 'source "$1"; echo "$OPENCODE_BIN"' _ "$BATS_TEST_DIRNAME/../mojave")"
+	result="$(HOME="$fake_home" PATH="$fake_bin:$PATH" bash -c 'source "$1"; echo "$OPENCODE_BIN"' _ "$BATS_TEST_DIRNAME/../ozymandias")"
 	rm -rf "$fake_bin" "$fake_home"
 	[[ "$result" == "$fake_bin/opencode" ]]
 }
@@ -97,7 +97,7 @@ teardown() {
 	printf '#!/bin/sh\n' >"$fake_bin/opencode-real"
 	chmod +x "$fake_bin/opencode-real"
 	ln -s "$fake_bin/opencode-real" "$link_dir/opencode"
-	result="$(HOME="$fake_home" PATH="$link_dir:$PATH" bash -c 'source "$1"; echo "$OPENCODE_BIN"' _ "$BATS_TEST_DIRNAME/../mojave")"
+	result="$(HOME="$fake_home" PATH="$link_dir:$PATH" bash -c 'source "$1"; echo "$OPENCODE_BIN"' _ "$BATS_TEST_DIRNAME/../ozymandias")"
 	rm -rf "$fake_bin" "$fake_home" "$link_dir"
 	[[ "$result" == "$fake_bin/opencode-real" ]]
 }
@@ -131,10 +131,10 @@ teardown() {
 
 @test "check_prerequisites: fails when policy file is missing" {
 	local old_policy
-	old_policy="$MOJAVE_POLICY_FILE"
-	MOJAVE_POLICY_FILE="/nonexistent/mojave-policy.json"
+	old_policy="$OZYMANDIAS_POLICY_FILE"
+	OZYMANDIAS_POLICY_FILE="/nonexistent/ozymandias-policy.json"
 	run check_prerequisites
-	MOJAVE_POLICY_FILE="$old_policy"
+	OZYMANDIAS_POLICY_FILE="$old_policy"
 	[[ "$status" -ne 0 ]]
 	[[ "$output" == *"policy"* ]]
 }
@@ -214,7 +214,7 @@ teardown() {
 	permissive_policy="$(mktemp --suffix=.json)"
 	echo '{"permission":{"bash":{"*":"allow","rm *":"allow"},"read":"allow","edit":"allow","write":"allow","glob":"allow","grep":"allow","webfetch":"allow","websearch":"allow"}}' \
 		>"$permissive_policy"
-	MOJAVE_POLICY_FILE="$permissive_policy" generate_config
+	OZYMANDIAS_POLICY_FILE="$permissive_policy" generate_config
 	rm -f "$permissive_policy"
 	local val
 	val="$(jq -r '.permission.bash["rm *"]' "$SANDBOX_CONFIG_FILE")"
@@ -226,20 +226,20 @@ teardown() {
 	[[ -f "$SANDBOX_AGENTS_FILE" ]]
 }
 
-@test "inject_preamble: temp file starts with MOJAVE:START sentinel" {
+@test "inject_preamble: temp file starts with OZYMANDIAS:START sentinel" {
 	inject_preamble
-	head -1 "$SANDBOX_AGENTS_FILE" | grep -q "MOJAVE:START"
+	head -1 "$SANDBOX_AGENTS_FILE" | grep -q "OZYMANDIAS:START"
 }
 
-@test "inject_preamble: temp file contains MOJAVE:END sentinel" {
+@test "inject_preamble: temp file contains OZYMANDIAS:END sentinel" {
 	inject_preamble
-	grep -q "MOJAVE:END" "$SANDBOX_AGENTS_FILE"
+	grep -q "OZYMANDIAS:END" "$SANDBOX_AGENTS_FILE"
 }
 
 @test "inject_preamble: preamble appears before existing content" {
 	inject_preamble
 	local start_line existing_line
-	start_line="$(grep -n "MOJAVE:START" "$SANDBOX_AGENTS_FILE" | cut -d: -f1)"
+	start_line="$(grep -n "OZYMANDIAS:START" "$SANDBOX_AGENTS_FILE" | cut -d: -f1)"
 	existing_line="$(grep -n "Existing instructions" "$SANDBOX_AGENTS_FILE" | cut -d: -f1)"
 	[[ "$start_line" -lt "$existing_line" ]]
 }
@@ -249,17 +249,17 @@ teardown() {
 	grep -q "Be concise." "$SANDBOX_AGENTS_FILE"
 }
 
-@test "strip_preamble: removes MOJAVE:START sentinel" {
+@test "strip_preamble: removes OZYMANDIAS:START sentinel" {
 	inject_preamble
 	echo "New agent instruction." >>"$SANDBOX_AGENTS_FILE"
 	strip_preamble
-	! grep -q "MOJAVE:START" "$GLOBAL_CONFIG_DIR/AGENTS.md"
+	! grep -q "OZYMANDIAS:START" "$GLOBAL_CONFIG_DIR/AGENTS.md"
 }
 
-@test "strip_preamble: removes MOJAVE:END sentinel" {
+@test "strip_preamble: removes OZYMANDIAS:END sentinel" {
 	inject_preamble
 	strip_preamble
-	! grep -q "MOJAVE:END" "$GLOBAL_CONFIG_DIR/AGENTS.md"
+	! grep -q "OZYMANDIAS:END" "$GLOBAL_CONFIG_DIR/AGENTS.md"
 }
 
 @test "strip_preamble: preserves original content" {
@@ -284,7 +284,7 @@ teardown() {
 	SANDBOX_AGENTS_FILE="$no_preamble_file"
 	strip_preamble
 	grep -q "Be concise." "$GLOBAL_CONFIG_DIR/AGENTS.md"
-	! grep -q "MOJAVE" "$GLOBAL_CONFIG_DIR/AGENTS.md"
+	! grep -q "OZYMANDIAS" "$GLOBAL_CONFIG_DIR/AGENTS.md"
 	rm -f "$no_preamble_file"
 	SANDBOX_AGENTS_FILE=""
 }
@@ -310,7 +310,7 @@ teardown() {
 	echo "Appended during session." >>"$SANDBOX_AGENTS_FILE"
 	cleanup
 	grep -q "Appended during session." "$GLOBAL_CONFIG_DIR/AGENTS.md"
-	! grep -q "MOJAVE:START" "$GLOBAL_CONFIG_DIR/AGENTS.md"
+	! grep -q "OZYMANDIAS:START" "$GLOBAL_CONFIG_DIR/AGENTS.md"
 }
 
 @test "launch_container: dry run includes project dir mount at same path" {
@@ -473,7 +473,7 @@ teardown() {
 }
 
 @test "end-to-end: DRY_RUN produces a valid podman run command" {
-	DRY_RUN=1 run "$BATS_TEST_DIRNAME/../mojave" "/tmp"
+	DRY_RUN=1 run "$BATS_TEST_DIRNAME/../ozymandias" "/tmp"
 	[[ "$status" -eq 0 ]]
 	[[ "$output" == *"podman run"* ]]
 	[[ "$output" == *"ubuntu:24.04"* ]]

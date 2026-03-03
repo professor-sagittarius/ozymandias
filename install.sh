@@ -3,18 +3,18 @@ set -euo pipefail
 
 INSTALL_DIR="${1:-$HOME/.local/bin}"
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-if [[ ! -f "$SCRIPT_DIR/mojave" ]]; then
-	echo "install.sh: error: cannot find mojave script at $SCRIPT_DIR/mojave" >&2
+if [[ ! -f "$SCRIPT_DIR/ozymandias" ]]; then
+	echo "install.sh: error: cannot find ozymandias script at $SCRIPT_DIR/ozymandias" >&2
 	exit 1
 fi
-if [[ ! -f "$SCRIPT_DIR/mojave-policy.json" ]]; then
-	echo "install.sh: error: cannot find mojave-policy.json at $SCRIPT_DIR/mojave-policy.json" >&2
+if [[ ! -f "$SCRIPT_DIR/ozymandias-policy.json" ]]; then
+	echo "install.sh: error: cannot find ozymandias-policy.json at $SCRIPT_DIR/ozymandias-policy.json" >&2
 	exit 1
 fi
 mkdir -p "$INSTALL_DIR"
-cp "$SCRIPT_DIR/mojave" "$INSTALL_DIR/mojave"
-chmod +x "$INSTALL_DIR/mojave"
-cp "$SCRIPT_DIR/mojave-policy.json" "$INSTALL_DIR/mojave-policy.json"
-echo "Installed mojave to $INSTALL_DIR/mojave"
-echo "Installed mojave-policy.json to $INSTALL_DIR/mojave-policy.json"
+cp "$SCRIPT_DIR/ozymandias" "$INSTALL_DIR/ozymandias"
+chmod +x "$INSTALL_DIR/ozymandias"
+cp "$SCRIPT_DIR/ozymandias-policy.json" "$INSTALL_DIR/ozymandias-policy.json"
+echo "Installed ozymandias to $INSTALL_DIR/ozymandias"
+echo "Installed ozymandias-policy.json to $INSTALL_DIR/ozymandias-policy.json"
 echo "Make sure $INSTALL_DIR is on your PATH."

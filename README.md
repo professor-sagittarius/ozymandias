@@ -1,11 +1,22 @@
-# mojave
+# ozymandias
 
 Runs [opencode](https://opencode.ai) inside a Podman container so the AI agent
 operates on a limited filesystem slice rather than your whole system.
 
-## What it does
+## Ozymandias
 
-When you launch a project with mojave:
+> And on the pedestal, these words appear:
+> My name is Ozymandias, King of Kings;
+> Look on my Works, ye Mighty, and despair!
+> Nothing beside remains. Round the decay
+> Of that colossal Wreck, boundless and bare
+> The lone and level sands stretch far away.
+>
+> -- Percy Bysshe Shelley
+
+## How it works
+
+When you launch a project with ozymandias:
 
 1. **Generates a sandboxed config** - merges your existing `opencode.json` with
    a permission policy that auto-allows file reads/writes/edits and requires
@@ -24,7 +35,7 @@ When you launch a project with mojave:
      `auth.json` and `bin/` within this directory are read-only
    - `~/.gitconfig` - read-only, if present (so git commits have correct identity);
      `[include]` directives referencing other files will not resolve inside the
-     container - mojave warns if any are detected
+     container - ozymandias warns if any are detected
 
 4. **Cleans up on exit** - strips the injected preamble from `AGENTS.md` and
    removes temp files.
@@ -41,7 +52,7 @@ When you launch a project with mojave:
 ## Installation
 
 ```sh
-./install.sh            # installs to ~/.local/bin/mojave
+./install.sh            # installs to ~/.local/bin/ozymandias
 ./install.sh /usr/local/bin  # or a custom directory
 ```
 
@@ -50,7 +61,7 @@ Make sure the install directory is on your `PATH`.
 ## Usage
 
 ```sh
-mojave [project-dir]
+ozymandias [project-dir]
 ```
 
 `project-dir` defaults to the current directory. The path must not contain a
@@ -58,7 +69,7 @@ colon (podman volume spec constraint).
 
 ## Permission policy
 
-Permissions are defined in `mojave-policy.json`, installed alongside the binary.
+Permissions are defined in `ozymandias-policy.json`, installed alongside the binary.
 You can edit this file to customize what requires confirmation. The defaults are:
 
 **Auto-allowed:**
@@ -73,8 +84,8 @@ You can edit this file to customize what requires confirmation. The defaults are
 
 **Always require confirmation (not overridable):**
 
-These floor constraints are hardcoded in mojave and cannot be weakened by editing
-`mojave-policy.json`:
+These floor constraints are hardcoded in ozymandias and cannot be weakened by editing
+`ozymandias-policy.json`:
 
 - File removal and overwriting: `rm`, `mv`, `cp -f`, `find -exec`
 - Network tools: `curl`, `wget`, `ssh`, `scp`
@@ -92,7 +103,7 @@ These floor constraints are hardcoded in mojave and cannot be weakened by editin
 ## Tests
 
 ```sh
-bats tests/mojave.bats
+bats tests/ozymandias.bats
 ```
 
 Requires [bats-core](https://github.com/bats-core/bats-core).
