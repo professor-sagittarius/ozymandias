@@ -312,6 +312,29 @@ teardown() {
 	[[ "$output" == *"--env HOME=${HOME}"* ]]
 }
 
+@test "launch_container: dry run mounts gitconfig read-only when present" {
+	local fake_home
+	fake_home="$(mktemp -d)"
+	touch "$fake_home/.gitconfig"
+	HOME="$fake_home" parse_args "/tmp"
+	HOME="$fake_home" generate_config
+	HOME="$fake_home" inject_preamble
+	HOME="$fake_home" DRY_RUN=1 run launch_container
+	rm -rf "$fake_home"
+	[[ "$output" == *"${fake_home}/.gitconfig:${fake_home}/.gitconfig:ro"* ]]
+}
+
+@test "launch_container: dry run omits gitconfig mount when absent" {
+	local fake_home
+	fake_home="$(mktemp -d)"
+	HOME="$fake_home" parse_args "/tmp"
+	HOME="$fake_home" generate_config
+	HOME="$fake_home" inject_preamble
+	HOME="$fake_home" DRY_RUN=1 run launch_container
+	rm -rf "$fake_home"
+	[[ "$output" != *".gitconfig"* ]]
+}
+
 @test "end-to-end: DRY_RUN produces a valid podman run command" {
 	DRY_RUN=1 run "$BATS_TEST_DIRNAME/../mojave" "/tmp"
 	[[ "$status" -eq 0 ]]

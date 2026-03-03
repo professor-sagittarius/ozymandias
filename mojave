@@ -165,9 +165,13 @@ launch_container() {
 		--volume "${SANDBOX_CONFIG_FILE}:${GLOBAL_CONFIG_DIR}/opencode.json:ro"
 		--volume "${SANDBOX_AGENTS_FILE}:${GLOBAL_CONFIG_DIR}/AGENTS.md"
 		--workdir "${PROJECT_DIR}"
-		"${CONTAINER_IMAGE}"
-		"${OPENCODE_BIN}"
 	)
+
+	if [[ -f "${HOME}/.gitconfig" ]]; then
+		cmd+=(--volume "${HOME}/.gitconfig:${HOME}/.gitconfig:ro")
+	fi
+
+	cmd+=("${CONTAINER_IMAGE}" "${OPENCODE_BIN}")
 
 	if [[ "${DRY_RUN:-0}" -eq 1 ]]; then
 		printf '%q ' "${cmd[@]}"
