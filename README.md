@@ -60,10 +60,15 @@ Make sure the install directory is on your `PATH`.
 
 ```sh
 ozymandias [project-dir]
+ozymandias -s <session> [project-dir]
 ```
 
 `project-dir` defaults to the current directory. The path must not contain a
 colon (podman volume spec constraint).
+
+Use `-s <session>` to resume a previous opencode session inside the sandbox.
+The resume command is printed automatically at the end of each ozymandias
+session.
 
 ## Permission policy
 

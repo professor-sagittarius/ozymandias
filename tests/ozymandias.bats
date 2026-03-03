@@ -21,6 +21,7 @@ EOF
 Be concise.
 EOF
 	SANDBOX_AGENTS_FILE=""
+	SESSION_HASH=""
 	# Create a minimal mock opencode binary so prerequisite tests are portable.
 	printf '#!/bin/sh\n' >"$GLOBAL_CONFIG_DIR/mock-opencode"
 	chmod +x "$GLOBAL_CONFIG_DIR/mock-opencode"
@@ -52,6 +53,35 @@ teardown() {
 @test "parse_args: rejects non-existent directory" {
 	run parse_args "/nonexistent/path/that/does/not/exist"
 	[[ "$status" -ne 0 ]]
+}
+
+@test "parse_args: -s flag sets SESSION_HASH" {
+	parse_args -s "ses_abc123def456ghi789jkl01234"
+	[[ "$SESSION_HASH" == "ses_abc123def456ghi789jkl01234" ]]
+}
+
+@test "parse_args: -s flag works alongside explicit project dir" {
+	parse_args -s "ses_abc123def456ghi789jkl01234" "/tmp"
+	[[ "$SESSION_HASH" == "ses_abc123def456ghi789jkl01234" ]]
+	[[ "$PROJECT_DIR" == "/tmp" ]]
+}
+
+@test "parse_args: -s requires an argument" {
+	run parse_args -s
+	[[ "$status" -ne 0 ]]
+	[[ "$output" == *"requires"* ]]
+}
+
+@test "parse_args: -s rejects invalid session hash format" {
+	run parse_args -s "not-a-valid-hash"
+	[[ "$status" -ne 0 ]]
+	[[ "$output" == *"invalid session hash"* ]]
+}
+
+@test "parse_args: rejects unknown options" {
+	run parse_args --unknown
+	[[ "$status" -ne 0 ]]
+	[[ "$output" == *"unknown option"* ]]
 }
 
 @test "parse_args: rejects path containing a colon" {
@@ -313,6 +343,35 @@ teardown() {
 	! grep -q "OZYMANDIAS:START" "$GLOBAL_CONFIG_DIR/AGENTS.md"
 }
 
+@test "launch_container: dry run passes -s flag to opencode when session set" {
+	parse_args -s "ses_abc123def456ghi789jkl01234" "/tmp"
+	generate_config
+	inject_preamble
+	DRY_RUN=1 run launch_container
+	[[ "$output" == *"-s ses_abc123def456ghi789jkl01234"* ]]
+}
+
+@test "launch_container: dry run omits -s flag when no session set" {
+	parse_args "/tmp"
+	generate_config
+	inject_preamble
+	DRY_RUN=1 run launch_container
+	[[ "$output" != *" -s "* ]]
+}
+
+@test "launch_container: resume line prints known session hash when SESSION_HASH set" {
+	local fake_bin
+	fake_bin="$(mktemp -d)"
+	printf '#!/bin/sh\nexit 0\n' >"$fake_bin/podman"
+	chmod +x "$fake_bin/podman"
+	parse_args -s "ses_abc123def456ghi789jkl01234" "/tmp"
+	generate_config
+	inject_preamble
+	PATH="$fake_bin:$PATH" run launch_container
+	rm -rf "$fake_bin"
+	[[ "$output" == *"ozymandias -s ses_abc123def456ghi789jkl01234 /tmp"* ]]
+}
+
 @test "launch_container: dry run includes project dir mount at same path" {
 	parse_args "/tmp"
 	generate_config
@@ -421,6 +480,22 @@ teardown() {
 	inject_preamble
 	DRY_RUN=1 run launch_container
 	[[ "$output" == *"--env HOME=${HOME}"* ]]
+}
+
+@test "launch_container: dry run passes TERM to container" {
+	parse_args "/tmp"
+	generate_config
+	inject_preamble
+	TERM=xterm-256color DRY_RUN=1 run launch_container
+	[[ "$output" == *"--env TERM=xterm-256color"* ]]
+}
+
+@test "launch_container: dry run passes COLORTERM to container" {
+	parse_args "/tmp"
+	generate_config
+	inject_preamble
+	COLORTERM=truecolor DRY_RUN=1 run launch_container
+	[[ "$output" == *"--env COLORTERM=truecolor"* ]]
 }
 
 @test "launch_container: dry run mounts gitconfig read-only when present" {

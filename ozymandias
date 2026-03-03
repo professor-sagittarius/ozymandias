@@ -2,7 +2,36 @@
 set -euo pipefail
 
 parse_args() {
-	local raw_dir="${1:-$PWD}"
+	# shellcheck disable=SC2034
+	SESSION_HASH=""
+	local raw_dir=""
+
+	while [[ $# -gt 0 ]]; do
+		case "$1" in
+			-s)
+				if [[ -z "${2:-}" ]]; then
+					echo "ozymandias: error: -s requires a session hash" >&2
+					return 1
+				fi
+				if [[ ! "${2}" =~ ^ses_[[:alnum:]]+$ ]]; then
+					echo "ozymandias: error: invalid session hash: ${2}" >&2
+					return 1
+				fi
+				SESSION_HASH="${2}"
+				shift 2
+				;;
+			-*)
+				echo "ozymandias: error: unknown option: $1" >&2
+				return 1
+				;;
+			*)
+				raw_dir="$1"
+				shift
+				;;
+		esac
+	done
+
+	raw_dir="${raw_dir:-$PWD}"
 	if [[ ! -d "$raw_dir" ]]; then
 		echo "ozymandias: error: directory not found: $raw_dir" >&2
 		return 1
@@ -166,6 +195,8 @@ launch_container() {
 		--interactive
 		--tty
 		--env "HOME=${HOME}"
+		--env "TERM=${TERM:-xterm-256color}"
+		--env "COLORTERM=${COLORTERM:-truecolor}"
 		--volume "${PROJECT_DIR}:${PROJECT_DIR}"
 		--volume "${OPENCODE_BIN}:${OPENCODE_BIN}:ro"
 		--volume "${OPENCODE_DATA_DIR}:${OPENCODE_DATA_DIR}"
@@ -189,6 +220,9 @@ launch_container() {
 	fi
 
 	cmd+=("${CONTAINER_IMAGE}" "${OPENCODE_BIN}")
+	if [[ -n "${SESSION_HASH:-}" ]]; then
+		cmd+=(-s "${SESSION_HASH}")
+	fi
 
 	if [[ "${DRY_RUN:-0}" -eq 1 ]]; then
 		printf '%q ' "${cmd[@]}"
@@ -196,7 +230,25 @@ launch_container() {
 		return 0
 	fi
 
-	"${cmd[@]}"
+	local marker_file exit_code=0
+	marker_file="$(mktemp)"
+	"${cmd[@]}" || exit_code=$?
+
+	local next_session=""
+	if [[ -n "${SESSION_HASH:-}" ]]; then
+		next_session="$SESSION_HASH"
+	else
+		next_session=$(find "$OPENCODE_DATA_DIR" -newer "$marker_file" 2>/dev/null \
+			| grep -oE 'ses_[[:alnum:]]+' | sort -u | head -1)
+	fi
+	rm -f "$marker_file"
+
+	if [[ -n "$next_session" ]]; then
+		printf '\n  \033[90mResume\033[0m    ozymandias -s %s %s\n\n' \
+			"$next_session" "${PROJECT_DIR}"
+	fi
+
+	return "$exit_code"
 }
 
 warn_gitconfig_includes() {
