@@ -244,7 +244,7 @@ launch_container() {
 	rm -f "$marker_file"
 
 	if [[ -n "$next_session" ]]; then
-		printf '\n  \033[90mResume\033[0m    ozymandias -s %s %s\n\n' \
+		printf '  \033[90mResume\033[0m    ozymandias -s %s %s\n\n' \
 			"$next_session" "${PROJECT_DIR}"
 	fi
 
