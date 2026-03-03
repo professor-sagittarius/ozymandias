@@ -27,8 +27,10 @@ When you launch a project with ozymandias:
 3. **Launches a container** (`ubuntu:24.04` via Podman) with only these paths
    mounted:
    - The project directory (read-write)
-   - `~/.config/opencode/` - sandboxed config and AGENTS.md (the original
-     `opencode.json` is replaced by the merged sandbox version)
+   - `~/.config/opencode/` - read-only; skills, plugins, and all other config
+     subdirectories are available to the agent. `AGENTS.md` is writable (the
+     sandbox preamble is injected on top of your existing file). `opencode.json`
+     is replaced by the merged sandbox version
    - `~/.local/share/opencode/` - session database and runtime files (read-write);
      `auth.json` and `bin/` within this directory are read-only
    - `~/.gitconfig` - read-only, if present (so git commits have correct identity);
