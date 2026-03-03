@@ -158,6 +158,7 @@ launch_container() {
 		--rm
 		--interactive
 		--tty
+		--env "HOME=${HOME}"
 		--volume "${PROJECT_DIR}:${PROJECT_DIR}"
 		--volume "${OPENCODE_BIN}:${OPENCODE_BIN}:ro"
 		--volume "${OPENCODE_DATA_DIR}:${OPENCODE_DATA_DIR}"

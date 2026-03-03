@@ -304,6 +304,14 @@ teardown() {
 	[[ "$output" == *"ubuntu:24.04"* ]]
 }
 
+@test "launch_container: dry run sets HOME env to match host" {
+	parse_args "/tmp"
+	generate_config
+	inject_preamble
+	DRY_RUN=1 run launch_container
+	[[ "$output" == *"--env HOME=${HOME}"* ]]
+}
+
 @test "end-to-end: DRY_RUN produces a valid podman run command" {
 	DRY_RUN=1 run "$BATS_TEST_DIRNAME/../mojave" "/tmp"
 	[[ "$status" -eq 0 ]]
