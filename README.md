@@ -30,7 +30,10 @@ When you launch a project with mojave:
 
 - [Podman](https://podman.io)
 - [jq](https://jqlang.org)
-- opencode installed at `~/.opencode/bin/opencode`
+- opencode binary, found via (in order):
+  1. `$OPENCODE_BIN` environment variable
+  2. `~/.opencode/bin/opencode` (default install path)
+  3. `opencode` on `$PATH` (symlinks are resolved to the real binary)
 
 ## Installation
 
