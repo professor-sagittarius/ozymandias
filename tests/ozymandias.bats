@@ -430,11 +430,78 @@ _setup_mock_opencode_db() {
 	chmod +x "$fake_bin/podman"
 	SESSION_HASH="ses_abc123def456ghi789jkl01234"
 	PROJECT_DIR="/tmp"
+	PATH="$fake_bin:$PATH" run launch_container
+	rm -rf "$fake_bin"
+	[[ "$output" == *"ozymandias -s ses_abc123def456ghi789jkl01234"* ]]
+	[[ "$output" != *" /tmp"* ]]
+}
+
+@test "launch_container: dry run mounts extra dir when EXTRA_DIRS set" {
+	parse_args "/tmp" "/var"
+	generate_config
+	inject_preamble
+	DRY_RUN=1 run launch_container
+	[[ "$output" == *"--volume /var:/var"* ]]
+}
+
+@test "launch_container: dry run does not double-mount PROJECT_DIR as extra" {
+	parse_args "/tmp" "/tmp"
+	generate_config
+	inject_preamble
+	DRY_RUN=1 run launch_container
+	# /tmp should appear exactly once as a volume
+	local count
+	count="$(printf '%s' "$output" | grep -o -- '--volume /tmp:/tmp' | wc -l)"
+	[[ "$count" -eq 1 ]]
+}
+
+@test "launch_container: dry run mounts multiple extra dirs" {
+	parse_args "/tmp" "/var" -d "/usr"
+	generate_config
+	inject_preamble
+	DRY_RUN=1 run launch_container
+	[[ "$output" == *"--volume /var:/var"* ]]
+	[[ "$output" == *"--volume /usr:/usr"* ]]
+}
+
+@test "launch_container: resume command omits directory" {
+	local fake_bin
+	fake_bin="$(mktemp -d)"
+	printf '#!/bin/sh\nexit 0\n' >"$fake_bin/podman"
+	chmod +x "$fake_bin/podman"
+	SESSION_HASH="ses_abc123def456ghi789jkl01234"
+	PROJECT_DIR="/tmp"
+	EXTRA_DIRS=()
 	generate_config
 	inject_preamble
 	PATH="$fake_bin:$PATH" run launch_container
 	rm -rf "$fake_bin"
-	[[ "$output" == *"ozymandias -s ses_abc123def456ghi789jkl01234"* ]]
+	# Must contain session hash
+	[[ "$output" == *"ses_abc123def456ghi789jkl01234"* ]]
+	# Must not contain a bare path
+	[[ "$output" != *" /tmp"* ]]
+}
+
+@test "launch_container: saves EXTRA_DIRS for new session after exit" {
+	local fake_bin fake_data
+	fake_bin="$(mktemp -d)"
+	fake_data="$(mktemp -d)"
+	# Mock podman: create a session file so find discovers a hash
+	printf '#!/bin/sh\nmkdir -p "%s/ses_newsession123456789012345"; exit 0\n' \
+		"$fake_data" >"$fake_bin/podman"
+	chmod +x "$fake_bin/podman"
+	SESSION_HASH=""
+	PROJECT_DIR="/tmp"
+	EXTRA_DIRS=("/var")
+	generate_config
+	inject_preamble
+	OPENCODE_DATA_DIR="$fake_data" PATH="$fake_bin:$PATH" \
+		OZYMANDIAS_CONFIG_DIR="$BATS_TMPDIR/ozy-config" launch_container || true
+	rm -rf "$fake_bin" "$fake_data"
+	local count
+	count="$(sqlite3 "$BATS_TMPDIR/ozy-config/state.db" \
+		"SELECT count(*) FROM session_dirs WHERE path='/var';" 2>/dev/null || echo 0)"
+	[[ "$count" -ge 1 ]]
 }
 
 @test "launch_container: dry run includes project dir mount at same path" {

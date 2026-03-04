@@ -297,6 +297,12 @@ cleanup() {
 }
 
 launch_container() {
+	# For resumed sessions: load stored extra dirs and persist any new CLI-supplied ones
+	if [[ -n "${SESSION_HASH:-}" ]]; then
+		load_extra_dirs
+		save_extra_dirs "$SESSION_HASH"
+	fi
+
 	local cmd=(
 		podman run
 		--rm
@@ -314,13 +320,18 @@ launch_container() {
 		--workdir "${PROJECT_DIR}"
 	)
 
+	# Mount extra directories (skip PROJECT_DIR if passed explicitly)
+	local dir
+	for dir in "${EXTRA_DIRS[@]+"${EXTRA_DIRS[@]}"}"; do
+		if [[ "$dir" != "$PROJECT_DIR" ]]; then
+			cmd+=(--volume "${dir}:${dir}")
+		fi
+	done
+
 	if [[ -f "${HOME}/.gitconfig" ]]; then
 		cmd+=(--volume "${HOME}/.gitconfig:${HOME}/.gitconfig:ro")
 	fi
 
-	# Overlay read-only paths on top of the read-write data dir mount.
-	# More specific bind mounts shadow broader ones, so the data dir remains
-	# writable for the session database and other runtime files.
 	if [[ -f "${OPENCODE_DATA_DIR}/auth.json" ]]; then
 		cmd+=(--volume "${OPENCODE_DATA_DIR}/auth.json:${OPENCODE_DATA_DIR}/auth.json:ro")
 	fi
@@ -349,12 +360,14 @@ launch_container() {
 	else
 		next_session=$(find "$OPENCODE_DATA_DIR" -newer "$marker_file" 2>/dev/null \
 			| grep -oE 'ses_[[:alnum:]]+' | sort -u | head -1)
+		if [[ -n "$next_session" ]] && [[ ${#EXTRA_DIRS[@]} -gt 0 ]]; then
+			save_extra_dirs "$next_session"
+		fi
 	fi
 	rm -f "$marker_file"
 
 	if [[ -n "$next_session" ]]; then
-		printf '  \033[90mResume\033[0m    ozymandias -s %s %s\n\n' \
-			"$next_session" "${PROJECT_DIR}"
+		printf '  \033[90mResume\033[0m    ozymandias -s %s\n\n' "$next_session"
 	fi
 
 	return "$exit_code"
