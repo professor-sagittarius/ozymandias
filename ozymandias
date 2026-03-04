@@ -229,12 +229,18 @@ EOF
 }
 
 _preamble_text() {
+	local extra_mounts=""
+	local dir
+	for dir in "${EXTRA_DIRS[@]+"${EXTRA_DIRS[@]}"}"; do
+		[[ "$dir" != "${PROJECT_DIR:-}" ]] && extra_mounts+=", $dir (read-write)"
+	done
+
 	cat <<PREAMBLE
 # OZYMANDIAS:START
 ## Sandbox Context
 
 You are running inside a Podman sandbox launched by ozymandias. Your filesystem access is
-limited to the following paths: the current project directory (read-write),
+limited to the following paths: the current project directory (read-write)${extra_mounts},
 $GLOBAL_CONFIG_DIR/ (read-only; AGENTS.md is read-write, opencode.json is replaced by a sandboxed version), and
 $OPENCODE_DATA_DIR/ (read-write for session data and runtime files; auth.json
 and bin/ within that directory are read-only). All other
@@ -381,6 +387,7 @@ warn_gitconfig_includes() {
 
 main() {
 	parse_args "$@"
+	resolve_project_dir
 	check_prerequisites
 	warn_gitconfig_includes
 	trap cleanup EXIT

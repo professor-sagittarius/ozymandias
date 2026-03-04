@@ -695,6 +695,21 @@ _setup_mock_opencode_db() {
 	[[ "$output" == *"--workdir /tmp"* ]]
 }
 
+@test "_preamble_text: lists single extra dir when EXTRA_DIRS set" {
+	EXTRA_DIRS=("/opt/lib")
+	PROJECT_DIR="/tmp"
+	_preamble_text | grep -q "/opt/lib"
+}
+
+@test "_preamble_text: does not mention extra dirs when EXTRA_DIRS empty" {
+	EXTRA_DIRS=()
+	PROJECT_DIR="/tmp"
+	local out
+	out="$(_preamble_text)"
+	# Should still describe the primary project directory
+	[[ "$out" == *"current project directory"* ]]
+}
+
 # ---------------------------------------------------------------------------
 # ensure_state_db
 # ---------------------------------------------------------------------------
