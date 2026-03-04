@@ -27,6 +27,7 @@ When you launch a project with ozymandias:
 3. **Launches a container** (`ubuntu:24.04` via Podman) with only these paths
    mounted:
    - The project directory (read-write)
+   - Any extra directories you specified (read-write, each at its original absolute path)
    - `~/.config/opencode/` - read-only; skills, plugins, and all other config
      subdirectories are available to the agent. `AGENTS.md` is writable (the
      sandbox preamble is injected on top of your existing file). `opencode.json`
@@ -44,6 +45,7 @@ When you launch a project with ozymandias:
 
 - [Podman](https://podman.io)
 - [jq](https://jqlang.org)
+- [sqlite3](https://sqlite.org) (for session state and directory lookup)
 - opencode binary, found via (in order):
   1. `$OPENCODE_BIN` environment variable
   2. `~/.opencode/bin/opencode` (default install path)
@@ -61,16 +63,24 @@ Make sure the install directory is on your `PATH`.
 ## Usage
 
 ```sh
-ozymandias [project-dir]
-ozymandias -s <session> [project-dir]
+ozymandias [DIR [EXTRA_DIR ...]] [-d EXTRA_DIR ...]
+ozymandias -s <session> [EXTRA_DIR ...] [-d EXTRA_DIR ...]
 ```
 
-`project-dir` defaults to the current directory. The path must not contain a
-colon (podman volume spec constraint).
+`DIR` defaults to the current directory. The path must not contain a colon
+(podman volume spec constraint).
+
+Extra directories can be specified as additional positional arguments or with
+the `-d` flag; both are equivalent. Each extra directory is mounted at its
+original absolute path inside the container (read-write).
+
+Extra directories are persisted per session in
+`~/.config/ozymandias/state.db`. On resume, all previously associated
+directories are automatically mounted without re-specifying them.
 
 Use `-s <session>` to resume a previous opencode session inside the sandbox.
-The resume command is printed automatically at the end of each ozymandias
-session.
+The primary project directory is resolved automatically from opencode's session
+database. The resume command is printed at the end of each ozymandias session.
 
 ## Permission policy
 
@@ -103,6 +113,7 @@ These floor constraints are hardcoded in ozymandias and cannot be weakened by ed
 | `OPENCODE_BIN` | `~/.opencode/bin/opencode` | Path to opencode binary |
 | `GLOBAL_CONFIG_DIR` | `~/.config/opencode` | opencode config directory |
 | `OPENCODE_DATA_DIR` | `~/.local/share/opencode` | opencode data directory |
+| `OZYMANDIAS_CONFIG_DIR` | `~/.config/ozymandias` | ozymandias state directory (holds `state.db`) |
 | `CONTAINER_IMAGE` | `ubuntu:24.04` | Container image to use |
 
 ## Tests
