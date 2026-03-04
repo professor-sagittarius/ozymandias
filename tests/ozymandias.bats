@@ -27,10 +27,13 @@ EOF
 	chmod +x "$GLOBAL_CONFIG_DIR/mock-opencode"
 	OPENCODE_BIN="$GLOBAL_CONFIG_DIR/mock-opencode"
 	OZYMANDIAS_POLICY_FILE="$BATS_TEST_DIRNAME/../ozymandias-policy.json"
+	OZYMANDIAS_CONFIG_DIR="$BATS_TMPDIR/ozy-config"
+	EXTRA_DIRS=()
 }
 
 teardown() {
 	rm -rf "$BATS_TMPDIR/fixtures"
+	rm -rf "$BATS_TMPDIR/ozy-config"
 	if [[ -n "${SANDBOX_CONFIG_FILE:-}" ]]; then rm -f "$SANDBOX_CONFIG_FILE"; fi
 	if [[ -n "${SANDBOX_AGENTS_FILE:-}" ]]; then rm -f "$SANDBOX_AGENTS_FILE"; fi
 }
@@ -561,4 +564,38 @@ teardown() {
 	[[ "$output" == *"podman run"* ]]
 	[[ "$output" == *"ubuntu:24.04"* ]]
 	[[ "$output" == *"--workdir /tmp"* ]]
+}
+
+# ---------------------------------------------------------------------------
+# ensure_state_db
+# ---------------------------------------------------------------------------
+
+@test "ensure_state_db: creates config dir when absent" {
+	local cfg
+	cfg="$(mktemp -d)"
+	rm -rf "$cfg"
+	OZYMANDIAS_CONFIG_DIR="$cfg" ensure_state_db
+	[[ -d "$cfg" ]]
+	rm -rf "$cfg"
+}
+
+@test "ensure_state_db: creates state.db with session_dirs table" {
+	local cfg
+	cfg="$(mktemp -d)"
+	OZYMANDIAS_CONFIG_DIR="$cfg" ensure_state_db
+	local tables
+	tables="$(sqlite3 "$cfg/state.db" ".tables")"
+	[[ "$tables" == *"session_dirs"* ]]
+	rm -rf "$cfg"
+}
+
+@test "ensure_state_db: is idempotent when called twice" {
+	local cfg
+	cfg="$(mktemp -d)"
+	OZYMANDIAS_CONFIG_DIR="$cfg" ensure_state_db
+	OZYMANDIAS_CONFIG_DIR="$cfg" ensure_state_db
+	local tables
+	tables="$(sqlite3 "$cfg/state.db" ".tables")"
+	[[ "$tables" == *"session_dirs"* ]]
+	rm -rf "$cfg"
 }

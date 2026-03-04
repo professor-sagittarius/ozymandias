@@ -62,6 +62,22 @@ OPENCODE_DATA_DIR="${OPENCODE_DATA_DIR:-$HOME/.local/share/opencode}"
 CONTAINER_IMAGE="${CONTAINER_IMAGE:-ubuntu:24.04}"
 # shellcheck disable=SC2034
 OZYMANDIAS_POLICY_FILE="${OZYMANDIAS_POLICY_FILE:-$(dirname "$(realpath "${BASH_SOURCE[0]}")")/ozymandias-policy.json}"
+# shellcheck disable=SC2034
+OZYMANDIAS_CONFIG_DIR="${OZYMANDIAS_CONFIG_DIR:-$HOME/.config/ozymandias}"
+
+_sql_escape() {
+	printf '%s' "$1" | sed "s/'/''/g"
+}
+
+ensure_state_db() {
+	mkdir -p "$OZYMANDIAS_CONFIG_DIR"
+	sqlite3 "$OZYMANDIAS_CONFIG_DIR/state.db" \
+		"CREATE TABLE IF NOT EXISTS session_dirs (
+			session_id TEXT NOT NULL,
+			path       TEXT NOT NULL,
+			PRIMARY KEY (session_id, path)
+		);"
+}
 
 check_prerequisites() {
 	local missing=0
