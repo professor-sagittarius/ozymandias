@@ -4,7 +4,11 @@ set -euo pipefail
 parse_args() {
 	# shellcheck disable=SC2034
 	SESSION_HASH=""
-	local raw_dir=""
+	# shellcheck disable=SC2034
+	PROJECT_DIR=""
+	# shellcheck disable=SC2034
+	EXTRA_DIRS=()
+	local raw_dirs=()
 
 	while [[ $# -gt 0 ]]; do
 		case "$1" in
@@ -20,28 +24,72 @@ parse_args() {
 				SESSION_HASH="${2}"
 				shift 2
 				;;
+			-d)
+				if [[ -z "${2:-}" ]]; then
+					echo "ozymandias: error: -d requires a directory" >&2
+					return 1
+				fi
+				raw_dirs+=("$2")
+				shift 2
+				;;
 			-*)
 				echo "ozymandias: error: unknown option: $1" >&2
 				return 1
 				;;
 			*)
-				raw_dir="$1"
+				raw_dirs+=("$1")
 				shift
 				;;
 		esac
 	done
 
-	raw_dir="${raw_dir:-$PWD}"
-	if [[ ! -d "$raw_dir" ]]; then
-		echo "ozymandias: error: directory not found: $raw_dir" >&2
-		return 1
+	_validate_and_resolve_dirs() {
+		local raw_dir abs_dir
+		for raw_dir in "$@"; do
+			if [[ ! -d "$raw_dir" ]]; then
+				echo "ozymandias: error: directory not found: $raw_dir" >&2
+				return 1
+			fi
+			abs_dir="$(realpath "$raw_dir")"
+			if [[ "$abs_dir" == *:* ]]; then
+				echo "ozymandias: error: project path contains a colon, which is not supported: $abs_dir" >&2
+				return 1
+			fi
+			printf '%s\n' "$abs_dir"
+		done
+	}
+
+	if [[ -n "${SESSION_HASH:-}" ]]; then
+		# With -s: all positional args and -d flags become extra dirs
+		local validated_output dir
+		if ! validated_output=$(_validate_and_resolve_dirs "${raw_dirs[@]+"${raw_dirs[@]}"}"); then
+			return 1
+		fi
+		while IFS= read -r dir; do
+			[[ -n "$dir" ]] && EXTRA_DIRS+=("$dir")
+		done <<< "$validated_output"
+	else
+		# Without -s: first positional arg is primary dir, rest are extra dirs
+		local abs_dirs=() validated_output dir
+		if ! validated_output=$(_validate_and_resolve_dirs "${raw_dirs[@]+"${raw_dirs[@]}"}"); then
+			return 1
+		fi
+		while IFS= read -r dir; do
+			[[ -n "$dir" ]] && abs_dirs+=("$dir")
+		done <<< "$validated_output"
+
+		if [[ ${#abs_dirs[@]} -gt 0 ]]; then
+			PROJECT_DIR="${abs_dirs[0]}"
+			EXTRA_DIRS=("${abs_dirs[@]:1}")
+		else
+			PROJECT_DIR="$(realpath "$PWD")"
+			if [[ "$PROJECT_DIR" == *:* ]]; then
+				echo "ozymandias: error: project path contains a colon, which is not supported: $PROJECT_DIR" >&2
+				return 1
+			fi
+		fi
 	fi
-	# shellcheck disable=SC2034
-	PROJECT_DIR="$(realpath "$raw_dir")"
-	if [[ "$PROJECT_DIR" == *:* ]]; then
-		echo "ozymandias: error: project path contains a colon, which is not supported: $PROJECT_DIR" >&2
-		return 1
-	fi
+	unset -f _validate_and_resolve_dirs
 }
 
 # Allow override in tests. If not set, prefer the default install path; fall

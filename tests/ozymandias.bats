@@ -63,10 +63,59 @@ teardown() {
 	[[ "$SESSION_HASH" == "ses_abc123def456ghi789jkl01234" ]]
 }
 
-@test "parse_args: -s flag works alongside explicit project dir" {
+@test "parse_args: -s with positional dir adds dir to EXTRA_DIRS, not PROJECT_DIR" {
 	parse_args -s "ses_abc123def456ghi789jkl01234" "/tmp"
 	[[ "$SESSION_HASH" == "ses_abc123def456ghi789jkl01234" ]]
+	[[ -z "$PROJECT_DIR" ]]
+	[[ "${EXTRA_DIRS[0]}" == "/tmp" ]]
+}
+
+@test "parse_args: -s with no dir leaves PROJECT_DIR empty" {
+	parse_args -s "ses_abc123def456ghi789jkl01234"
+	[[ -z "$PROJECT_DIR" ]]
+	[[ ${#EXTRA_DIRS[@]} -eq 0 ]]
+}
+
+@test "parse_args: second positional arg added to EXTRA_DIRS" {
+	parse_args "/tmp" "/var"
 	[[ "$PROJECT_DIR" == "/tmp" ]]
+	[[ "${EXTRA_DIRS[0]}" == "/var" ]]
+}
+
+@test "parse_args: -d flag adds to EXTRA_DIRS" {
+	parse_args "/tmp" -d "/var"
+	[[ "$PROJECT_DIR" == "/tmp" ]]
+	[[ "${EXTRA_DIRS[0]}" == "/var" ]]
+}
+
+@test "parse_args: -d flag requires an argument" {
+	run parse_args "/tmp" -d
+	[[ "$status" -ne 0 ]]
+	[[ "$output" == *"requires"* ]]
+}
+
+@test "parse_args: multiple -d flags accumulate" {
+	parse_args "/tmp" -d "/var" -d "/usr"
+	[[ "$PROJECT_DIR" == "/tmp" ]]
+	[[ "${EXTRA_DIRS[0]}" == "/var" ]]
+	[[ "${EXTRA_DIRS[1]}" == "/usr" ]]
+}
+
+@test "parse_args: positional extras and -d flags combine" {
+	parse_args "/tmp" "/var" -d "/usr"
+	[[ "$PROJECT_DIR" == "/tmp" ]]
+	[[ ${#EXTRA_DIRS[@]} -eq 2 ]]
+}
+
+@test "parse_args: rejects non-existent extra directory" {
+	run parse_args "/tmp" "/nonexistent/path/xyz"
+	[[ "$status" -ne 0 ]]
+	[[ "$output" == *"directory not found"* ]]
+}
+
+@test "parse_args: EXTRA_DIRS resolves relative paths to absolute" {
+	parse_args "/tmp" "."
+	[[ "${EXTRA_DIRS[0]}" == "$PWD" ]]
 }
 
 @test "parse_args: -s requires an argument" {
@@ -367,12 +416,13 @@ teardown() {
 	fake_bin="$(mktemp -d)"
 	printf '#!/bin/sh\nexit 0\n' >"$fake_bin/podman"
 	chmod +x "$fake_bin/podman"
-	parse_args -s "ses_abc123def456ghi789jkl01234" "/tmp"
+	SESSION_HASH="ses_abc123def456ghi789jkl01234"
+	PROJECT_DIR="/tmp"
 	generate_config
 	inject_preamble
 	PATH="$fake_bin:$PATH" run launch_container
 	rm -rf "$fake_bin"
-	[[ "$output" == *"ozymandias -s ses_abc123def456ghi789jkl01234 /tmp"* ]]
+	[[ "$output" == *"ozymandias -s ses_abc123def456ghi789jkl01234"* ]]
 }
 
 @test "launch_container: dry run includes project dir mount at same path" {
