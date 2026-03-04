@@ -38,6 +38,18 @@ teardown() {
 	if [[ -n "${SANDBOX_AGENTS_FILE:-}" ]]; then rm -f "$SANDBOX_AGENTS_FILE"; fi
 }
 
+_setup_mock_opencode_db() {
+	local session_id="$1" directory="$2"
+	mkdir -p "$OPENCODE_DATA_DIR"
+	sqlite3 "$OPENCODE_DATA_DIR/opencode.db" \
+		"CREATE TABLE IF NOT EXISTS session (
+			id TEXT PRIMARY KEY, project_id TEXT NOT NULL, slug TEXT NOT NULL,
+			directory TEXT NOT NULL, title TEXT NOT NULL, version TEXT NOT NULL,
+			time_created INTEGER NOT NULL, time_updated INTEGER NOT NULL
+		);
+		INSERT INTO session VALUES ('$session_id','proj','slug','$directory','t','1',0,0);"
+}
+
 @test "parse_args: defaults PROJECT_DIR to PWD when no argument given" {
 	parse_args
 	[[ "$PROJECT_DIR" == "$PWD" ]]
@@ -648,4 +660,47 @@ teardown() {
 	tables="$(sqlite3 "$cfg/state.db" ".tables")"
 	[[ "$tables" == *"session_dirs"* ]]
 	rm -rf "$cfg"
+}
+
+# ---------------------------------------------------------------------------
+# resolve_project_dir
+# ---------------------------------------------------------------------------
+
+@test "resolve_project_dir: sets PROJECT_DIR from opencode.db when SESSION_HASH set" {
+	local fake_data
+	fake_data="$(mktemp -d)"
+	OPENCODE_DATA_DIR="$fake_data" _setup_mock_opencode_db \
+		"ses_abc123def456ghi789jkl01234" "/tmp"
+	SESSION_HASH="ses_abc123def456ghi789jkl01234"
+	PROJECT_DIR=""
+	OPENCODE_DATA_DIR="$fake_data" resolve_project_dir
+	rm -rf "$fake_data"
+	[[ "$PROJECT_DIR" == "/tmp" ]]
+}
+
+@test "resolve_project_dir: errors when session not in db" {
+	local fake_data
+	fake_data="$(mktemp -d)"
+	OPENCODE_DATA_DIR="$fake_data" _setup_mock_opencode_db \
+		"ses_otherone1234567890123456789" "/tmp"
+	SESSION_HASH="ses_abc123def456ghi789jkl01234"
+	PROJECT_DIR=""
+	OPENCODE_DATA_DIR="$fake_data" run resolve_project_dir
+	rm -rf "$fake_data"
+	[[ "$status" -ne 0 ]]
+	[[ "$output" == *"session not found"* ]]
+}
+
+@test "resolve_project_dir: no-op when PROJECT_DIR already set" {
+	SESSION_HASH="ses_abc123def456ghi789jkl01234"
+	PROJECT_DIR="/already/set"
+	resolve_project_dir
+	[[ "$PROJECT_DIR" == "/already/set" ]]
+}
+
+@test "resolve_project_dir: no-op when SESSION_HASH empty" {
+	SESSION_HASH=""
+	PROJECT_DIR=""
+	resolve_project_dir
+	[[ -z "$PROJECT_DIR" ]]
 }

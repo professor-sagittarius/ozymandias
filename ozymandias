@@ -127,6 +127,17 @@ ensure_state_db() {
 		);"
 }
 
+resolve_project_dir() {
+	[[ -z "${SESSION_HASH:-}" || -n "${PROJECT_DIR:-}" ]] && return 0
+	PROJECT_DIR=$(sqlite3 "$OPENCODE_DATA_DIR/opencode.db" \
+		"SELECT directory FROM session WHERE id = '$(_sql_escape "${SESSION_HASH}")' LIMIT 1;" \
+		2>/dev/null || true)
+	if [[ -z "${PROJECT_DIR:-}" ]]; then
+		echo "ozymandias: error: session not found in database: ${SESSION_HASH}" >&2
+		return 1
+	fi
+}
+
 check_prerequisites() {
 	local missing=0
 
