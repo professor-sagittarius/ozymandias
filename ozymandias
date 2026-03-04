@@ -127,6 +127,39 @@ ensure_state_db() {
 		);"
 }
 
+save_extra_dirs() {
+	local session_id="$1"
+	[[ ${#EXTRA_DIRS[@]} -eq 0 ]] && return 0
+	ensure_state_db
+	local dir
+	for dir in "${EXTRA_DIRS[@]}"; do
+		sqlite3 "$OZYMANDIAS_CONFIG_DIR/state.db" \
+			"INSERT OR IGNORE INTO session_dirs (session_id, path)
+			 VALUES ('$(_sql_escape "$session_id")', '$(_sql_escape "$dir")');"
+	done
+}
+
+load_extra_dirs() {
+	ensure_state_db
+	local stored=()
+	local path
+	while IFS= read -r path; do
+		[[ -n "$path" ]] && stored+=("$path")
+	done < <(sqlite3 "$OZYMANDIAS_CONFIG_DIR/state.db" \
+		"SELECT path FROM session_dirs WHERE session_id = '$(_sql_escape "${SESSION_HASH}")' ORDER BY path;")
+
+	# Merge: CLI-supplied first, then stored; deduplicate preserving order
+	local all_dirs=("${EXTRA_DIRS[@]+"${EXTRA_DIRS[@]}"}" "${stored[@]+"${stored[@]}"}")
+	local -A seen=()
+	EXTRA_DIRS=()
+	for path in "${all_dirs[@]+"${all_dirs[@]}"}"; do
+		if [[ -z "${seen[$path]+set}" ]]; then
+			seen[$path]=1
+			EXTRA_DIRS+=("$path")
+		fi
+	done
+}
+
 resolve_project_dir() {
 	[[ -z "${SESSION_HASH:-}" || -n "${PROJECT_DIR:-}" ]] && return 0
 	PROJECT_DIR=$(sqlite3 "$OPENCODE_DATA_DIR/opencode.db" \

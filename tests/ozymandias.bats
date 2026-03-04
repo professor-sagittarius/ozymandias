@@ -704,3 +704,71 @@ _setup_mock_opencode_db() {
 	resolve_project_dir
 	[[ -z "$PROJECT_DIR" ]]
 }
+
+# ---------------------------------------------------------------------------
+# load_extra_dirs / save_extra_dirs
+# ---------------------------------------------------------------------------
+
+@test "save_extra_dirs: persists EXTRA_DIRS to state.db" {
+	EXTRA_DIRS=("/tmp" "/var")
+	OZYMANDIAS_CONFIG_DIR="$BATS_TMPDIR/ozy-config" save_extra_dirs "ses_abc123def456ghi789jkl01234"
+	local rows
+	rows="$(sqlite3 "$BATS_TMPDIR/ozy-config/state.db" \
+		"SELECT path FROM session_dirs WHERE session_id='ses_abc123def456ghi789jkl01234' ORDER BY path;")"
+	[[ "$rows" == *"/tmp"* ]]
+	[[ "$rows" == *"/var"* ]]
+}
+
+@test "save_extra_dirs: duplicate paths are ignored" {
+	EXTRA_DIRS=("/tmp" "/tmp")
+	OZYMANDIAS_CONFIG_DIR="$BATS_TMPDIR/ozy-config" save_extra_dirs "ses_abc123def456ghi789jkl01234"
+	local count
+	count="$(sqlite3 "$BATS_TMPDIR/ozy-config/state.db" \
+		"SELECT count(*) FROM session_dirs WHERE session_id='ses_abc123def456ghi789jkl01234';")"
+	[[ "$count" -eq 1 ]]
+}
+
+@test "save_extra_dirs: no-op when EXTRA_DIRS is empty" {
+	EXTRA_DIRS=()
+	OZYMANDIAS_CONFIG_DIR="$BATS_TMPDIR/ozy-config" save_extra_dirs "ses_abc123def456ghi789jkl01234"
+	local count
+	count="$(sqlite3 "$BATS_TMPDIR/ozy-config/state.db" \
+		"SELECT count(*) FROM session_dirs;" 2>/dev/null || echo 0)"
+	[[ "$count" -eq 0 ]]
+}
+
+@test "load_extra_dirs: loads stored dirs into EXTRA_DIRS" {
+	EXTRA_DIRS=()
+	OZYMANDIAS_CONFIG_DIR="$BATS_TMPDIR/ozy-config" ensure_state_db
+	sqlite3 "$BATS_TMPDIR/ozy-config/state.db" \
+		"INSERT INTO session_dirs VALUES ('ses_abc123def456ghi789jkl01234','/opt/stored');"
+	SESSION_HASH="ses_abc123def456ghi789jkl01234"
+	OZYMANDIAS_CONFIG_DIR="$BATS_TMPDIR/ozy-config" load_extra_dirs
+	[[ "${EXTRA_DIRS[*]}" == *"/opt/stored"* ]]
+}
+
+@test "load_extra_dirs: merges stored dirs with existing EXTRA_DIRS" {
+	EXTRA_DIRS=("/tmp/cli-supplied")
+	OZYMANDIAS_CONFIG_DIR="$BATS_TMPDIR/ozy-config" ensure_state_db
+	sqlite3 "$BATS_TMPDIR/ozy-config/state.db" \
+		"INSERT INTO session_dirs VALUES ('ses_abc123def456ghi789jkl01234','/opt/stored');"
+	SESSION_HASH="ses_abc123def456ghi789jkl01234"
+	OZYMANDIAS_CONFIG_DIR="$BATS_TMPDIR/ozy-config" load_extra_dirs
+	[[ "${EXTRA_DIRS[*]}" == *"/tmp/cli-supplied"* ]]
+	[[ "${EXTRA_DIRS[*]}" == *"/opt/stored"* ]]
+}
+
+@test "load_extra_dirs: deduplicates when CLI dir already stored" {
+	EXTRA_DIRS=("/opt/stored")
+	OZYMANDIAS_CONFIG_DIR="$BATS_TMPDIR/ozy-config" ensure_state_db
+	sqlite3 "$BATS_TMPDIR/ozy-config/state.db" \
+		"INSERT INTO session_dirs VALUES ('ses_abc123def456ghi789jkl01234','/opt/stored');"
+	SESSION_HASH="ses_abc123def456ghi789jkl01234"
+	OZYMANDIAS_CONFIG_DIR="$BATS_TMPDIR/ozy-config" load_extra_dirs
+	local count=0
+	local dir
+	for dir in "${EXTRA_DIRS[@]}"; do
+		[[ "$dir" == "/opt/stored" ]] && (( count++ )) || true
+	done
+	[[ "$count" -eq 1 ]]
+}
